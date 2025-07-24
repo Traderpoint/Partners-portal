@@ -7,6 +7,13 @@ export default function AffiliateProductsTest() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [affiliates, setAffiliates] = useState([]);
+  const [affiliatesLoading, setAffiliatesLoading] = useState(true);
+
+  // Load all affiliates on component mount
+  useEffect(() => {
+    loadAllAffiliates();
+  }, []);
 
   // Auto-load on page load if affiliate_id in URL
   useEffect(() => {
@@ -16,6 +23,26 @@ export default function AffiliateProductsTest() {
       loadAffiliateProducts(affiliate_id);
     }
   }, [router.query]);
+
+  const loadAllAffiliates = async () => {
+    setAffiliatesLoading(true);
+    try {
+      console.log('🔍 Loading all affiliates...');
+      const response = await fetch('/api/hostbill/get-all-affiliates');
+      const result = await response.json();
+
+      if (result.success && result.affiliates) {
+        setAffiliates(result.affiliates);
+        console.log(`✅ Loaded ${result.affiliates.length} affiliates`);
+      } else {
+        console.error('❌ Failed to load affiliates:', result.error);
+      }
+    } catch (err) {
+      console.error('❌ Error loading affiliates:', err);
+    } finally {
+      setAffiliatesLoading(false);
+    }
+  };
 
   const loadAffiliateProducts = async (affId = affiliateId) => {
     setLoading(true);
@@ -61,6 +88,61 @@ export default function AffiliateProductsTest() {
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1>🎯 HostBill Affiliate Products Test</h1>
       <p>Test komplexního API pro získání produktů s provizemi podle affiliate ID</p>
+
+      {/* Quick Affiliate Links */}
+      <div style={{
+        marginBottom: '30px',
+        padding: '20px',
+        backgroundColor: '#e3f2fd',
+        borderRadius: '8px',
+        border: '1px solid #2196f3'
+      }}>
+        <h3 style={{ margin: '0 0 15px 0', color: '#1976d2' }}>🔗 Quick Affiliate Links</h3>
+        {affiliatesLoading ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <span>⏳ Loading affiliates...</span>
+          </div>
+        ) : affiliates.length > 0 ? (
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {affiliates.map(affiliate => (
+              <a
+                key={affiliate.id}
+                href={`/affiliate-products-test?affiliate_id=${affiliate.id}`}
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: affiliateId === affiliate.id ? '#1976d2' : '#2196f3',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  border: affiliateId === affiliate.id ? '2px solid #0d47a1' : 'none',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  if (affiliateId !== affiliate.id) {
+                    e.target.style.backgroundColor = '#1976d2';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (affiliateId !== affiliate.id) {
+                    e.target.style.backgroundColor = '#2196f3';
+                  }
+                }}
+              >
+                #{affiliate.id} - {affiliate.firstname} {affiliate.lastname}
+                <div style={{ fontSize: '11px', opacity: '0.9' }}>
+                  {affiliate.status} • Balance: {affiliate.balance} {affiliate.currency?.code || 'CZK'}
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+            ⚠️ No affiliates found
+          </div>
+        )}
+      </div>
 
       {/* Input Section */}
       <div style={{ 
@@ -323,41 +405,7 @@ export default function AffiliateProductsTest() {
         </div>
       )}
 
-      {/* Quick Test Links */}
-      <div style={{ 
-        marginTop: '30px',
-        padding: '20px',
-        backgroundColor: '#f5f5f5',
-        borderRadius: '8px'
-      }}>
-        <h3>🔗 Quick Test Links</h3>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <a 
-            href="/affiliate-products-test?affiliate_id=1" 
-            style={{ 
-              padding: '8px 16px', 
-              backgroundColor: '#0066cc', 
-              color: 'white', 
-              textDecoration: 'none',
-              borderRadius: '4px'
-            }}
-          >
-            Affiliate ID 1
-          </a>
-          <a 
-            href="/affiliate-products-test?affiliate_id=2" 
-            style={{ 
-              padding: '8px 16px', 
-              backgroundColor: '#0066cc', 
-              color: 'white', 
-              textDecoration: 'none',
-              borderRadius: '4px'
-            }}
-          >
-            Affiliate ID 2
-          </a>
-        </div>
-      </div>
+
     </div>
   );
 }
