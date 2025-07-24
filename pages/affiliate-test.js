@@ -81,7 +81,7 @@ export default function AffiliateTest() {
   };
 
   const simulateAffiliateLink = () => {
-    const testAffiliateId = 'PARTNER456';
+    const testAffiliateId = '1';
     const currentUrl = new URL(window.location);
     currentUrl.searchParams.set('aff', testAffiliateId);
     

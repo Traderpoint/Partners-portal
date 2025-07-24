@@ -82,21 +82,31 @@ export default function Checkout() {
         newsletterSubscribe: formData.newsletterSubscribe
       };
 
-      // Send to HostBill API (this would be implemented based on your HostBill setup)
-      const response = await fetch('/api/create-order', {
+      // Send to HostBill API
+      const response = await fetch('/api/hostbill/create-order', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(orderData)
+        body: JSON.stringify({
+          client_id: '81', // Test Partner's client ID for affiliate ID 1
+          product_id: items[0]?.hostbillPid || '5', // Use first item's product ID or default to 5
+          cycle: 'm', // Monthly
+          affiliate_id: affiliateId || '1', // Use affiliate ID or default to 1
+          selected_addons: [],
+          config_options: {},
+          customer_data: orderData.customer
+        })
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        
+      const result = await response.json();
+
+      if (result.success && result.order_id) {
+        console.log('✅ HostBill order created:', result.order_id);
+
         // Clear cart and redirect to confirmation
         clearCart();
-        router.push(`/order-confirmation?orderId=${result.orderId}`);
+        router.push(`/order-confirmation?orderId=${result.order_id}&affiliate=${affiliateId || '1'}`);
       } else {
         throw new Error('Chyba při vytváření objednávky');
       }

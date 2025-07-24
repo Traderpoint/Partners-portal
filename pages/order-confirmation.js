@@ -10,18 +10,52 @@ export default function OrderConfirmation() {
 
   useEffect(() => {
     if (orderId) {
-      // In a real implementation, you would fetch order details from your API
-      // For now, we'll simulate this
+      const { affiliate } = router.query;
+
+      // Simulate order details
       setTimeout(() => {
         setOrderDetails({
           id: orderId,
-          status: 'pending',
-          createdAt: new Date().toISOString()
+          status: 'confirmed',
+          createdAt: new Date().toISOString(),
+          affiliateId: affiliate || '1',
+          product: 'VPS Basic',
+          price: '299 CZK/měsíc'
         });
         setLoading(false);
       }, 1000);
+
+      // Track conversion for affiliate
+      if (affiliate) {
+        trackConversion(orderId, affiliate);
+      }
     }
-  }, [orderId]);
+  }, [orderId, router.query]);
+
+  const trackConversion = async (orderId, affiliateId) => {
+    try {
+      console.log('🎯 Tracking conversion:', { orderId, affiliateId });
+
+      // Call affiliate tracking API
+      await fetch('/api/hostbill/affiliate-tracking', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          affiliate_id: affiliateId,
+          action: 'conversion',
+          order_id: orderId,
+          amount: 299,
+          currency: 'CZK'
+        })
+      });
+
+      console.log('✅ Conversion tracked successfully');
+    } catch (error) {
+      console.error('❌ Conversion tracking failed:', error);
+    }
+  };
 
   if (loading) {
     return (

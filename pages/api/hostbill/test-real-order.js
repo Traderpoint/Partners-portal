@@ -9,10 +9,10 @@ export default async function handler(req, res) {
   }
 
   const { 
-    client_id = '1', // Test client ID
+    client_id = '81', // Test Partner's client ID for affiliate ID 1
     product_id = '5', // Updated product ID from .env.local
     cycle = 'm',
-    affiliate_id = '2' // Default affiliate ID 2
+    affiliate_id = '1' // Default affiliate ID 1
   } = req.body;
 
   console.log('🧪 Testing REAL HostBill order creation:', {

@@ -66,7 +66,7 @@ export default function ProductSelector({ onOrderCreate, affiliateId = null }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          client_id: '68', // WORKING - Ales Ridl's client ID (affiliate ID 2)
+          client_id: '81', // WORKING - Test Partner's client ID (affiliate ID 1)
           product_id: selectedProduct.id,
           cycle: cycle,
           affiliate_id: affiliateId,
