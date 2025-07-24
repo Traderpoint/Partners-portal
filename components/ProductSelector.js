@@ -60,6 +60,13 @@ export default function ProductSelector({ onOrderCreate, affiliateId = null }) {
     });
 
     try {
+      const hostbillProductId = getHostBillProductId(selectedProduct.id);
+      console.log('🔍 Debug info:', {
+        selectedProductId: selectedProduct.id,
+        hostbillProductId: hostbillProductId,
+        selectedProduct: selectedProduct
+      });
+
       const response = await fetch('/api/hostbill/create-order', {
         method: 'POST',
         headers: {
@@ -67,7 +74,7 @@ export default function ProductSelector({ onOrderCreate, affiliateId = null }) {
         },
         body: JSON.stringify({
           client_id: '81', // WORKING - Test Partner's client ID (affiliate ID 1)
-          product_id: getHostBillProductId(selectedProduct.id), // Map internal ID to HostBill product ID
+          product_id: hostbillProductId, // Map internal ID to HostBill product ID
           cycle: cycle,
           affiliate_id: affiliateId,
           selected_addons: selectedAddons,
