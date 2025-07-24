@@ -10,7 +10,7 @@ const plans = [
     ram: '4 GB',
     storage: '50 GB',
     price: '249 Kč',
-    hostbillPid: 1,
+    hostbillPid: 5, // Fixed: Use existing HostBill product ID 5
     popular: false
   },
   {
@@ -20,7 +20,7 @@ const plans = [
     ram: '8 GB',
     storage: '100 GB',
     price: '499 Kč',
-    hostbillPid: 2,
+    hostbillPid: 5, // Fixed: Use existing HostBill product ID 5
     popular: true
   },
   {
@@ -30,7 +30,7 @@ const plans = [
     ram: '16 GB',
     storage: '200 GB',
     price: '999 Kč',
-    hostbillPid: 3,
+    hostbillPid: 5, // Fixed: Use existing HostBill product ID 5
     popular: false
   },
   {
@@ -40,7 +40,7 @@ const plans = [
     ram: '32 GB',
     storage: '400 GB',
     price: '1899 Kč',
-    hostbillPid: 4,
+    hostbillPid: 5, // Fixed: Use existing HostBill product ID 5
     popular: false
   }
 ];
