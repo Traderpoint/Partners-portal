@@ -67,14 +67,37 @@ export default async function handler(req, res) {
     
     if (orderResponse.success && orderResponse.data.success === true) {
       orderResult.order_id = orderResponse.data.order_id;
+
+      // Get order number from getOrders API
+      try {
+        const ordersPayload = {
+          call: 'getOrders',
+          api_id: HOSTBILL_CONFIG.apiId,
+          api_key: HOSTBILL_CONFIG.apiKey,
+          limit: 5
+        };
+
+        const ordersResponse = await makeHostBillAPICall(ordersPayload);
+        if (ordersResponse.success && ordersResponse.data.orders) {
+          const createdOrder = ordersResponse.data.orders.find(order => order.id === orderResponse.data.order_id.toString());
+          if (createdOrder && createdOrder.number) {
+            orderResult.order_number = createdOrder.number;
+            console.log('✅ Order number found:', createdOrder.number);
+          }
+        }
+      } catch (numberError) {
+        console.warn('⚠️ Could not get order number:', numberError.message);
+      }
+
       orderResult.steps.push({
         step: 'create_order',
         status: 'success',
         order_id: orderResponse.data.order_id,
+        order_number: orderResult.order_number,
         message: 'Order created successfully'
       });
 
-      console.log('✅ Order created:', orderResponse.data.order_id);
+      console.log('✅ Order created:', orderResponse.data.order_id, 'Number:', orderResult.order_number);
 
       // Step 2: Assign affiliate to the order (if affiliate_id provided)
       if (affiliate_id && orderResult.order_id) {

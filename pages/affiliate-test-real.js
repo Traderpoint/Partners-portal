@@ -237,7 +237,7 @@ export default function AffiliateTestReal() {
             {testResults.success && testResults.order_id && (
               <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: 'white', borderRadius: '4px' }}>
                 <h3 style={{ margin: '0 0 10px 0', color: '#00cc66' }}>🎉 Objednávka vytvořena!</h3>
-                <p><strong>🎯 Číslo objednávky:</strong> <span style={{ fontSize: '1.3em', color: '#0066cc', fontWeight: 'bold' }}>Order #{testResults.order_id}</span></p>
+                <p><strong>🎯 Číslo objednávky:</strong> <span style={{ fontSize: '1.3em', color: '#0066cc', fontWeight: 'bold' }}>{testResults.order_number || `Order #${testResults.order_id}`}</span></p>
                 <p><strong>🤝 Affiliate ID:</strong> {affiliateData?.id}</p>
                 <p><strong>📅 Vytvořeno:</strong> {new Date().toLocaleString('cs-CZ')}</p>
                 {testResults.affiliate_assigned !== undefined && (
