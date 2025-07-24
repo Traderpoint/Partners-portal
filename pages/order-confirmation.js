@@ -12,25 +12,93 @@ export default function OrderConfirmation() {
     if (orderId) {
       const { affiliate } = router.query;
 
-      // Simulate order details
-      setTimeout(() => {
+      // Get real order details from HostBill
+      fetchOrderDetails(orderId, affiliate);
+    }
+  }, [orderId, router.query]);
+
+  const fetchOrderDetails = async (orderId, affiliate) => {
+    try {
+      console.log('🔍 Fetching order details for:', orderId);
+
+      // Get order details from HostBill
+      const response = await fetch('/api/hostbill/get-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ order_id: orderId })
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.response.data.orders) {
+        const order = result.response.data.orders.find(o => o.id === orderId.toString());
+
+        if (order) {
+          console.log('✅ Order found:', order);
+
+          setOrderDetails({
+            id: orderId,
+            order_number: order.number,
+            status: order.status,
+            createdAt: order.date_created,
+            affiliateId: affiliate || '1',
+            product: 'VPS Service',
+            price: `${order.total} CZK`,
+            client_name: `${order.firstname} ${order.lastname}`,
+            invoice_id: order.invoice_id,
+            invoice_status: order.invstatus
+          });
+        } else {
+          console.warn('⚠️ Order not found in HostBill, using fallback');
+          // Fallback to basic details
+          setOrderDetails({
+            id: orderId,
+            order_number: null,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+            affiliateId: affiliate || '1',
+            product: 'VPS Service',
+            price: 'N/A'
+          });
+        }
+      } else {
+        console.error('❌ Failed to get order details:', result);
+        // Fallback
         setOrderDetails({
           id: orderId,
-          status: 'confirmed',
+          order_number: null,
+          status: 'unknown',
           createdAt: new Date().toISOString(),
           affiliateId: affiliate || '1',
-          product: 'VPS Basic',
-          price: '299 CZK/měsíc'
+          product: 'VPS Service',
+          price: 'N/A'
         });
-        setLoading(false);
-      }, 1000);
+      }
 
       // Track conversion for affiliate
       if (affiliate) {
         trackConversion(orderId, affiliate);
       }
+
+    } catch (error) {
+      console.error('❌ Error fetching order details:', error);
+
+      // Fallback to basic details
+      setOrderDetails({
+        id: orderId,
+        order_number: null,
+        status: 'error',
+        createdAt: new Date().toISOString(),
+        affiliateId: affiliate || '1',
+        product: 'VPS Service',
+        price: 'N/A'
+      });
+    } finally {
+      setLoading(false);
     }
-  }, [orderId, router.query]);
+  };
 
   const trackConversion = async (orderId, affiliateId) => {
     try {
@@ -115,7 +183,7 @@ export default function OrderConfirmation() {
         <div className="space-y-3">
           <div className="flex justify-between">
             <span className="text-gray-600">Číslo objednávky:</span>
-            <span className="font-semibold">Order #{orderId}</span>
+            <span className="font-semibold">{orderDetails.order_number || `Order #${orderId}`}</span>
           </div>
           
           <div className="flex justify-between">
