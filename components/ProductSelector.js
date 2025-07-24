@@ -259,7 +259,7 @@ export default function ProductSelector({ onOrderCreate, affiliateId = null }) {
           <h3>{orderResult.success ? '✅ Objednávka úspěšná!' : '❌ Chyba objednávky'}</h3>
           {orderResult.success && orderResult.order_id && (
             <div style={{ marginBottom: '15px' }}>
-              <p><strong>🎯 Číslo objednávky:</strong> <span style={{ fontSize: '1.2em', color: '#0066cc', fontWeight: 'bold' }}>#{orderResult.order_id}</span></p>
+              <p><strong>🎯 Číslo objednávky:</strong> <span style={{ fontSize: '1.2em', color: '#0066cc', fontWeight: 'bold' }}>Order #{orderResult.order_id}</span></p>
               <p><strong>🤝 Affiliate ID:</strong> {affiliateId}</p>
               <p><strong>📅 Vytvořeno:</strong> {new Date().toLocaleString('cs-CZ')}</p>
             </div>

@@ -115,7 +115,7 @@ export default function OrderConfirmation() {
         <div className="space-y-3">
           <div className="flex justify-between">
             <span className="text-gray-600">Číslo objednávky:</span>
-            <span className="font-semibold">#{orderId}</span>
+            <span className="font-semibold">Order #{orderId}</span>
           </div>
           
           <div className="flex justify-between">
