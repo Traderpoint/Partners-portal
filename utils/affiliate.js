@@ -9,7 +9,7 @@ export function extractAffiliateParams(url) {
   const urlParams = new URLSearchParams(url.split('?')[1] || '');
   
   return {
-    id: urlParams.get('aff') || urlParams.get('affiliate') || urlParams.get('ref'),
+    id: urlParams.get('affid') || urlParams.get('aff') || urlParams.get('affiliate') || urlParams.get('ref'),
     code: urlParams.get('aff_code') || urlParams.get('affiliate_code'),
     campaign: urlParams.get('campaign') || urlParams.get('utm_campaign'),
     source: urlParams.get('source') || urlParams.get('utm_source'),
