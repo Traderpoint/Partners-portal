@@ -227,40 +227,17 @@ export default function AffiliateTestReal() {
       {testResults && (
         <div style={{ marginTop: '20px' }}>
           <h2>📊 Test Results</h2>
-          <div style={{
-            padding: '15px',
-            backgroundColor: testResults.success ? '#f0fff0' : '#fff0f0',
-            border: `1px solid ${testResults.success ? '#00cc66' : '#cc0066'}`,
-            borderRadius: '5px'
+          <div style={{ 
+            padding: '15px', 
+            backgroundColor: testResults.success ? '#f0fff0' : '#fff0f0', 
+            border: `1px solid ${testResults.success ? '#00cc66' : '#cc0066'}`, 
+            borderRadius: '5px',
+            maxHeight: '600px',
+            overflow: 'auto'
           }}>
-            {/* Show order info if it's an order result */}
-            {testResults.success && testResults.order_id && (
-              <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: 'white', borderRadius: '4px' }}>
-                <h3 style={{ margin: '0 0 10px 0', color: '#00cc66' }}>🎉 Objednávka vytvořena!</h3>
-                <p><strong>🎯 Číslo objednávky:</strong> <span style={{ fontSize: '1.3em', color: '#0066cc', fontWeight: 'bold' }}>{testResults.order_number || `Order #${testResults.order_id}`}</span></p>
-                <p><strong>🤝 Affiliate ID:</strong> {affiliateData?.id}</p>
-                <p><strong>📅 Vytvořeno:</strong> {new Date().toLocaleString('cs-CZ')}</p>
-                {testResults.affiliate_assigned !== undefined && (
-                  <p><strong>🔗 Affiliate přiřazen:</strong> {testResults.affiliate_assigned ? '✅ Ano' : '⚠️ Ne (timing issue)'}</p>
-                )}
-              </div>
-            )}
-
-            {/* Show error info */}
-            {!testResults.success && testResults.error && (
-              <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: 'white', borderRadius: '4px' }}>
-                <h3 style={{ margin: '0 0 10px 0', color: '#cc0066' }}>❌ Chyba</h3>
-                <p><strong>Chyba:</strong> {testResults.error}</p>
-              </div>
-            )}
-
-            {/* Technical details */}
-            <details>
-              <summary style={{ cursor: 'pointer', color: '#666', fontWeight: 'bold' }}>🔧 Technické detaily</summary>
-              <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px', marginTop: '10px', backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '4px', maxHeight: '400px', overflow: 'auto' }}>
-                {JSON.stringify(testResults, null, 2)}
-              </pre>
-            </details>
+            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
+              {JSON.stringify(testResults, null, 2)}
+            </pre>
           </div>
         </div>
       )}

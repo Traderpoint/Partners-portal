@@ -257,24 +257,9 @@ export default function ProductSelector({ onOrderCreate, affiliateId = null }) {
           borderRadius: '8px'
         }}>
           <h3>{orderResult.success ? '✅ Objednávka úspěšná!' : '❌ Chyba objednávky'}</h3>
-          {orderResult.success && orderResult.order_id && (
-            <div style={{ marginBottom: '15px' }}>
-              <p><strong>🎯 Číslo objednávky:</strong> <span style={{ fontSize: '1.2em', color: '#0066cc', fontWeight: 'bold' }}>{orderResult.order_number || `Order #${orderResult.order_id}`}</span></p>
-              <p><strong>🤝 Affiliate ID:</strong> {affiliateId}</p>
-              <p><strong>📅 Vytvořeno:</strong> {new Date().toLocaleString('cs-CZ')}</p>
-            </div>
-          )}
-          {!orderResult.success && (
-            <div style={{ marginBottom: '15px' }}>
-              <p><strong>❌ Chyba:</strong> {orderResult.error}</p>
-            </div>
-          )}
-          <details style={{ marginTop: '10px' }}>
-            <summary style={{ cursor: 'pointer', color: '#666' }}>🔧 Technické detaily</summary>
-            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px', marginTop: '10px', backgroundColor: '#f8f9fa', padding: '10px', borderRadius: '4px' }}>
-              {JSON.stringify(orderResult, null, 2)}
-            </pre>
-          </details>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
+            {JSON.stringify(orderResult, null, 2)}
+          </pre>
         </div>
       )}
     </div>
