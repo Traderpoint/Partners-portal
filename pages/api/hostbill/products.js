@@ -144,11 +144,11 @@ export default async function handler(req, res) {
 function getCommissionRate(productId, affiliateId) {
   // This would typically come from HostBill affiliate commission plans
   const commissionRates = {
-    '1': { '1': '10%', '2': '12%' }, // Product 1: Affiliate 1 gets 10%, Affiliate 2 gets 12%
-    '2': { '1': '15%', '2': '18%' }, // Product 2: Higher commissions
+    '5': { '1': '10%', '2': '12%' }, // Product 5: Affiliate 1 gets 10%, Affiliate 2 gets 12%
+    '10': { '1': '15%', '2': '18%' }, // Product 10: Higher commissions
     '3': { '1': '8%', '2': '10%' },
     '4': { '1': '12%', '2': '15%' },
-    '5': { '1': '20%', '2': '25%' }  // Premium product
+    '1': { '1': '20%', '2': '25%' }  // Premium product
   };
 
   return commissionRates[productId]?.[affiliateId] || '5%'; // Default 5%

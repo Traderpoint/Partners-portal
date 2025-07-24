@@ -11,7 +11,7 @@ export default function AffiliateScenarios() {
       id: 'basic',
       name: '🎯 Základní affiliate tracking',
       description: 'Standardní návštěva s affiliate ID',
-      url: '?aff=1',
+      url: '?aff=2',
       expected: 'Detekce affiliate ID, cookie storage, pixel tracking'
     },
     {
@@ -25,7 +25,7 @@ export default function AffiliateScenarios() {
       id: 'multiple-params',
       name: '📊 Komplexní URL',
       description: 'URL s více parametry',
-      url: '?aff=1&utm_source=google&utm_campaign=vps2024',
+      url: '?aff=2&utm_source=google&utm_campaign=vps2024',
       expected: 'Správná extrakce affiliate ID mezi ostatními parametry'
     },
     {
@@ -39,7 +39,7 @@ export default function AffiliateScenarios() {
       id: 'mobile',
       name: '📱 Mobilní návštěva',
       description: 'Test na mobilním zařízení',
-      url: '?aff=1&mobile=1',
+      url: '?aff=2&mobile=1',
       expected: 'Správné fungování na mobilních zařízeních'
     },
     {
