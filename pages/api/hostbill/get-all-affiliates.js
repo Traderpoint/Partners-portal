@@ -85,44 +85,30 @@ export default async function handler(req, res) {
   console.log('🎯 Getting all affiliates from HostBill...');
 
   try {
-    // Since getAffiliates might not work, try to get affiliates by testing known IDs
-    console.log('🔍 Attempting to discover affiliates by testing IDs...');
+    // Use official getAffiliates API (basic version without pagination parameters)
+    console.log('🔍 Getting affiliates using official getAffiliates API...');
 
-    const allAffiliates = [];
-    const maxAffiliateId = 10; // Test first 10 IDs
+    const affiliatesPayload = {
+      call: 'getAffiliates',
+      api_id: HOSTBILL_CONFIG.apiId,
+      api_key: HOSTBILL_CONFIG.apiKey
+      // Note: Not using page/perpage parameters as they cause API to fail
+    };
 
-    for (let id = 1; id <= maxAffiliateId; id++) {
-      try {
-        const affiliatePayload = {
-          call: 'getAffiliate',
-          api_id: HOSTBILL_CONFIG.apiId,
-          api_key: HOSTBILL_CONFIG.apiKey,
-          id: id.toString()
-        };
+    const affiliatesResponse = await makeHostBillAPICall(affiliatesPayload);
 
-        const affiliateResponse = await makeHostBillAPICall(affiliatePayload);
+    if (!affiliatesResponse.success || !affiliatesResponse.data.success) {
+      console.error(`❌ getAffiliates failed:`, affiliatesResponse.error);
+      console.error(`❌ API response:`, affiliatesResponse.data);
 
-        if (affiliateResponse.success && affiliateResponse.data.affiliate) {
-          const affiliate = affiliateResponse.data.affiliate;
-          allAffiliates.push({
-            id: affiliate.id,
-            firstname: affiliate.firstname,
-            lastname: affiliate.lastname,
-            status: affiliate.status,
-            balance: affiliate.balance,
-            visits: affiliate.visits,
-            client_id: affiliate.client_id,
-            currency: affiliate.currency,
-            date_created: affiliate.date_created
-          });
-          console.log(`✅ Found affiliate ID ${id}: ${affiliate.firstname} ${affiliate.lastname}`);
-        } else {
-          console.log(`⚪ No affiliate found for ID ${id}`);
-        }
-      } catch (error) {
-        console.log(`❌ Error checking affiliate ID ${id}:`, error.message);
-      }
+      // If official API fails, fallback to individual discovery
+      console.log('🔄 Falling back to individual affiliate discovery...');
+      const fallbackResult = await fallbackAffiliateDiscovery();
+      return res.status(200).json(fallbackResult);
     }
+
+    const allAffiliates = affiliatesResponse.data.affiliates || [];
+    console.log(`✅ getAffiliates API successful: Found ${allAffiliates.length} affiliates`);
 
     // Sort affiliates by ID for consistent ordering
     allAffiliates.sort((a, b) => parseInt(a.id) - parseInt(b.id));
@@ -132,8 +118,8 @@ export default async function handler(req, res) {
       success: true,
       affiliates: allAffiliates,
       total_affiliates: allAffiliates.length,
-      method: 'individual_discovery',
-      max_tested_id: maxAffiliateId,
+      method: 'official_getAffiliates_api',
+      api_call: 'getAffiliates',
       timestamp: new Date().toISOString()
     };
 
@@ -149,4 +135,61 @@ export default async function handler(req, res) {
       details: error.message
     });
   }
+}
+
+// Fallback function for individual affiliate discovery
+async function fallbackAffiliateDiscovery() {
+  console.log('🔄 Using fallback: individual affiliate discovery...');
+
+  const allAffiliates = [];
+  const maxAffiliateId = 20; // Test more IDs in fallback
+
+  for (let id = 1; id <= maxAffiliateId; id++) {
+    try {
+      const affiliatePayload = {
+        call: 'getAffiliate',
+        api_id: HOSTBILL_CONFIG.apiId,
+        api_key: HOSTBILL_CONFIG.apiKey,
+        id: id.toString()
+      };
+
+      const affiliateResponse = await makeHostBillAPICall(affiliatePayload);
+
+      if (affiliateResponse.success && affiliateResponse.data.affiliate) {
+        const affiliate = affiliateResponse.data.affiliate;
+        allAffiliates.push({
+          id: affiliate.id,
+          firstname: affiliate.firstname,
+          lastname: affiliate.lastname,
+          status: affiliate.status,
+          balance: affiliate.balance,
+          visits: affiliate.visits,
+          client_id: affiliate.client_id,
+          currency: affiliate.currency,
+          date_created: affiliate.date_created,
+          total_withdrawn: affiliate.total_withdrawn,
+          currency_id: affiliate.currency_id,
+          signups: affiliate.conversion || '0',
+          signups_pending: '0'
+        });
+        console.log(`✅ Found affiliate ID ${id}: ${affiliate.firstname} ${affiliate.lastname}`);
+      } else {
+        console.log(`⚪ No affiliate found for ID ${id}`);
+      }
+    } catch (error) {
+      console.log(`❌ Error checking affiliate ID ${id}:`, error.message);
+    }
+  }
+
+  // Sort affiliates by ID for consistent ordering
+  allAffiliates.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+
+  return {
+    success: true,
+    affiliates: allAffiliates,
+    total_affiliates: allAffiliates.length,
+    method: 'fallback_individual_discovery',
+    max_tested_id: maxAffiliateId,
+    timestamp: new Date().toISOString()
+  };
 }
