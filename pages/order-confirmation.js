@@ -4,18 +4,38 @@ import Link from 'next/link';
 
 export default function OrderConfirmation() {
   const router = useRouter();
-  const { orderId } = router.query;
+  const { orderId, orderNumber, realOrder } = router.query;
   const [orderDetails, setOrderDetails] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (orderId) {
+    const orderIdentifier = orderNumber || orderId;
+    if (orderIdentifier) {
       const { affiliate } = router.query;
 
-      // Get real order details from HostBill
-      fetchOrderDetails(orderId, affiliate);
+      if (realOrder === 'true' && orderNumber) {
+        // Direct display of order number from checkout
+        setOrderDetails({
+          id: orderId,
+          order_number: orderNumber,
+          status: 'confirmed',
+          createdAt: new Date().toISOString(),
+          affiliateId: affiliate || '1',
+          product: 'VPS Service',
+          price: 'Podle tarifu'
+        });
+        setLoading(false);
+
+        // Track conversion for affiliate
+        if (affiliate) {
+          trackConversion(orderIdentifier, affiliate);
+        }
+      } else {
+        // Get real order details from HostBill
+        fetchOrderDetails(orderIdentifier, affiliate);
+      }
     }
-  }, [orderId, router.query]);
+  }, [orderId, orderNumber, realOrder, router.query]);
 
   const fetchOrderDetails = async (orderId, affiliate) => {
     try {
@@ -134,7 +154,7 @@ export default function OrderConfirmation() {
     );
   }
 
-  if (!orderId) {
+  if (!orderId && !orderNumber) {
     return (
       <div className="container mx-auto py-16 px-4 text-center">
         <h1 className="text-2xl font-bold mb-4">Objednávka nenalezena</h1>

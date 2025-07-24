@@ -102,11 +102,16 @@ export default function Checkout() {
       const result = await response.json();
 
       if (result.success && result.order_id) {
-        console.log('✅ HostBill order created:', result.order_id);
+        console.log('✅ HostBill order created:', result.order_id, 'Number:', result.order_number);
 
         // Clear cart and redirect to confirmation
         clearCart();
-        router.push(`/order-confirmation?orderId=${result.order_id}&affiliate=${affiliateId || '1'}`);
+
+        // Use order_number if available, otherwise use order_id
+        const orderIdentifier = result.order_number || result.order_id;
+        const orderParam = result.order_number ? 'orderNumber' : 'orderId';
+
+        router.push(`/order-confirmation?${orderParam}=${orderIdentifier}&affiliate=${affiliateId || '1'}&realOrder=true`);
       } else {
         throw new Error('Chyba při vytváření objednávky');
       }
