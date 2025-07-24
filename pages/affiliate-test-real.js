@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import ProductSelector from '../components/ProductSelector';
 
 export default function AffiliateTestReal() {
   const [testResults, setTestResults] = useState(null);
@@ -260,6 +261,9 @@ export default function AffiliateTestReal() {
           <li>✅ <strong>Order creation</strong> - objednávka s přiřazeným affiliate</li>
         </ul>
 
+        <h3>🛍️ Product Selector:</h3>
+        <p>Níže najdete kompletní produktový selektor s onClick eventy připravenými pro reálné HostBill ID.</p>
+
         <h3>🔧 Available Endpoints:</h3>
         <ul>
           <li><code>/api/hostbill/affiliate-tracking</code> - Správný affiliate tracking</li>
@@ -268,6 +272,23 @@ export default function AffiliateTestReal() {
           <li><code>/api/hostbill/test-affiliate-api</code> - API connectivity test</li>
         </ul>
       </div>
+
+      {/* Product Selector Component */}
+      {affiliateData && (
+        <div style={{ marginTop: '40px', padding: '20px', backgroundColor: '#f8f9fa', border: '2px solid #0066cc', borderRadius: '8px' }}>
+          <h2>🛍️ Produktový selektor s placeholdery</h2>
+          <p style={{ color: '#666', marginBottom: '20px' }}>
+            Tento selektor je připraven s placeholder ID. Po dodání reálných HostBill product a addon ID bude plně funkční.
+          </p>
+          <ProductSelector
+            affiliateId={affiliateData.id}
+            onOrderCreate={(result) => {
+              console.log('Order created from ProductSelector:', result);
+              setTestResults(result);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

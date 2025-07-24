@@ -1,23 +1,20 @@
 // HostBill Create Order s affiliate assignment
 import https from 'https';
 import { URL } from 'url';
-
-const HOSTBILL_CONFIG = {
-  apiUrl: process.env.HOSTBILL_API_URL || 'https://vps.kabel1it.cz/admin/api.php',
-  apiId: process.env.HOSTBILL_API_ID || 'adcdebb0e3b6f583052d',
-  apiKey: process.env.HOSTBILL_API_KEY || '341697c41aeb1c842f0d'
-};
+import { HOSTBILL_CONFIG, createOrderPayload, createAffiliatePayload, getProductById, getAddonById } from '../../../lib/hostbill-config.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { 
-    client_id, 
-    product_id, 
+  const {
+    client_id,
+    product_id,
     cycle = 'm', // monthly by default
     affiliate_id,
+    selected_addons = [], // Array of addon objects {id, quantity}
+    config_options = {}, // Configuration options {ram: '4GB', cpu: '2', storage: '80GB'}
     confirm = 1,
     invoice_generate = 1,
     invoice_info = 1
@@ -34,8 +31,19 @@ export default async function handler(req, res) {
     client_id,
     product_id,
     cycle,
-    affiliate_id
+    affiliate_id,
+    selected_addons,
+    config_options
   });
+
+  // Validate product exists
+  const product = getProductById(product_id);
+  if (!product) {
+    return res.status(400).json({
+      success: false,
+      error: `Product ID ${product_id} not found. Available products: ${Object.keys(getProductById).join(', ')}`
+    });
+  }
 
   const orderResult = {
     success: false,
@@ -45,18 +53,15 @@ export default async function handler(req, res) {
   };
 
   try {
-    // Step 1: Create the order
-    const orderPayload = {
-      call: 'addOrder',
-      api_id: HOSTBILL_CONFIG.apiId,
-      api_key: HOSTBILL_CONFIG.apiKey,
-      client_id: client_id,
-      product: product_id,
-      cycle: cycle,
-      confirm: confirm,
-      invoice_generate: invoice_generate,
-      invoice_info: invoice_info
-    };
+    // Step 1: Create the order with addons and config
+    const orderPayload = createOrderPayload(
+      client_id,
+      product_id,
+      cycle,
+      selected_addons,
+      config_options,
+      affiliate_id
+    );
 
     const orderResponse = await makeHostBillAPICall(orderPayload);
     
@@ -74,13 +79,7 @@ export default async function handler(req, res) {
       // Step 2: Assign affiliate to the order (if affiliate_id provided)
       if (affiliate_id && orderResult.order_id) {
         try {
-          const affiliatePayload = {
-            call: 'setOrderReferrer',
-            api_id: HOSTBILL_CONFIG.apiId,
-            api_key: HOSTBILL_CONFIG.apiKey,
-            id: orderResult.order_id,
-            referral: affiliate_id
-          };
+          const affiliatePayload = createAffiliatePayload(orderResult.order_id, affiliate_id);
 
           const affiliateResponse = await makeHostBillAPICall(affiliatePayload);
           
