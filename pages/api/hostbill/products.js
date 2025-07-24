@@ -15,7 +15,51 @@ export default async function handler(req, res) {
 
   const { affiliate_id } = req.query;
 
-  console.log('🛍️ Getting products for affiliate:', affiliate_id);
+  // If affiliate_id is provided, try to use the new comprehensive API first
+  if (affiliate_id) {
+    try {
+      console.log('🔄 Attempting to use comprehensive affiliate products API...');
+      const protocol = req.headers['x-forwarded-proto'] || 'http';
+      const host = req.headers.host;
+      const affiliateProductsUrl = `${protocol}://${host}/api/hostbill/get-affiliate-products?affiliate_id=${affiliate_id}`;
+
+      const response = await fetch(affiliateProductsUrl);
+      const data = await response.json();
+
+      if (data.success && data.products && data.products.length > 0) {
+        console.log(`✅ Using comprehensive API: Found ${data.products.length} products`);
+        // Transform data to match expected format
+        return res.status(200).json({
+          success: true,
+          affiliate_id: affiliate_id,
+          products: data.products.map(product => ({
+            id: product.id,
+            name: product.name,
+            description: product.description || '',
+            monthly_price: product.m,
+            quarterly_price: product.q,
+            semiannually_price: product.s,
+            annually_price: product.a,
+            commission_rate: product.commission.rate + (product.commission.type === 'Percent' ? '%' : ' CZK'),
+            commission_plan: product.commission.plan_name,
+            category: product.category.name,
+            visible: product.visible === '1',
+            type: product.ptype
+          })),
+          commission_plans: data.commission_plans,
+          summary: data.summary,
+          timestamp: data.timestamp,
+          source: 'comprehensive_api'
+        });
+      } else {
+        console.log('⚠️ Comprehensive API returned no products, falling back to legacy method...');
+      }
+    } catch (error) {
+      console.log('⚠️ Error calling comprehensive API, falling back to legacy method:', error.message);
+    }
+  }
+
+  console.log('🛍️ Getting products for affiliate (legacy method):', affiliate_id);
 
   try {
     // Get product details from HostBill
@@ -119,7 +163,8 @@ export default async function handler(req, res) {
       affiliate_id: affiliate_id,
       products: products,
       total_products: products.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      source: 'legacy_api'
     };
 
     console.log('🛍️ Products response:', {

@@ -1,0 +1,363 @@
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+
+export default function AffiliateProductsTest() {
+  const router = useRouter();
+  const [affiliateId, setAffiliateId] = useState('1');
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+
+  // Auto-load on page load if affiliate_id in URL
+  useEffect(() => {
+    const { affiliate_id } = router.query;
+    if (affiliate_id) {
+      setAffiliateId(affiliate_id);
+      loadAffiliateProducts(affiliate_id);
+    }
+  }, [router.query]);
+
+  const loadAffiliateProducts = async (affId = affiliateId) => {
+    setLoading(true);
+    setError(null);
+    setData(null);
+
+    try {
+      console.log(`🔍 Loading products for affiliate ID: ${affId}`);
+      const response = await fetch(`/api/hostbill/get-affiliate-products?affiliate_id=${affId}`);
+      const result = await response.json();
+
+      if (result.success) {
+        setData(result);
+        console.log('✅ Products loaded successfully:', result);
+      } else {
+        setError(result.error || 'Failed to load products');
+        console.error('❌ Failed to load products:', result);
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error('❌ Error loading products:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatPrice = (price) => {
+    return price && parseFloat(price) > 0 ? `${price} CZK` : 'N/A';
+  };
+
+  const formatCommission = (commission) => {
+    if (!commission || !commission.rate) return 'N/A';
+    
+    if (commission.type === 'Percent') {
+      return `${commission.rate}%`;
+    } else if (commission.type === 'Fixed') {
+      return `${commission.rate} CZK`;
+    }
+    return commission.rate;
+  };
+
+  return (
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <h1>🎯 HostBill Affiliate Products Test</h1>
+      <p>Test komplexního API pro získání produktů s provizemi podle affiliate ID</p>
+
+      {/* Input Section */}
+      <div style={{ 
+        backgroundColor: '#f5f5f5', 
+        padding: '20px', 
+        borderRadius: '8px', 
+        marginBottom: '20px' 
+      }}>
+        <h3>🔧 Test Parameters</h3>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <label>
+            <strong>Affiliate ID:</strong>
+            <input
+              type="text"
+              value={affiliateId}
+              onChange={(e) => setAffiliateId(e.target.value)}
+              style={{ 
+                marginLeft: '10px', 
+                padding: '8px', 
+                border: '1px solid #ddd',
+                borderRadius: '4px'
+              }}
+              placeholder="Enter affiliate ID"
+            />
+          </label>
+          <button
+            onClick={() => loadAffiliateProducts()}
+            disabled={loading || !affiliateId}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: loading ? '#ccc' : '#0066cc',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? '⏳ Loading...' : '🔍 Load Products'}
+          </button>
+        </div>
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '40px',
+          backgroundColor: '#e3f2fd',
+          borderRadius: '8px',
+          marginBottom: '20px'
+        }}>
+          <h3>⏳ Loading affiliate products...</h3>
+          <p>Fetching data from HostBill API...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div style={{ 
+          backgroundColor: '#ffebee', 
+          border: '1px solid #f44336',
+          borderRadius: '8px', 
+          padding: '20px',
+          marginBottom: '20px'
+        }}>
+          <h3 style={{ color: '#d32f2f', margin: '0 0 10px 0' }}>❌ Error</h3>
+          <p style={{ margin: 0, color: '#d32f2f' }}>{error}</p>
+        </div>
+      )}
+
+      {/* Success State */}
+      {data && (
+        <div>
+          {/* Affiliate Info */}
+          <div style={{ 
+            backgroundColor: '#e8f5e8', 
+            border: '1px solid #4caf50',
+            borderRadius: '8px', 
+            padding: '20px',
+            marginBottom: '20px'
+          }}>
+            <h3 style={{ color: '#2e7d32', margin: '0 0 15px 0' }}>
+              ✅ Affiliate: {data.affiliate.firstname} {data.affiliate.lastname}
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+              <div><strong>ID:</strong> {data.affiliate.id}</div>
+              <div><strong>Status:</strong> {data.affiliate.status}</div>
+              <div><strong>Balance:</strong> {data.affiliate.balance} {data.affiliate.currency?.code || 'CZK'}</div>
+              <div><strong>Visits:</strong> {data.affiliate.visits}</div>
+              <div><strong>Conversions:</strong> {data.affiliate.conversion}</div>
+              <div><strong>Client ID:</strong> {data.affiliate.client_id}</div>
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div style={{ 
+            backgroundColor: '#fff3e0', 
+            border: '1px solid #ff9800',
+            borderRadius: '8px', 
+            padding: '20px',
+            marginBottom: '20px'
+          }}>
+            <h3 style={{ color: '#f57c00', margin: '0 0 15px 0' }}>📊 Summary</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+              <div><strong>Categories:</strong> {data.summary.total_categories}</div>
+              <div><strong>Available Products:</strong> {data.summary.total_products}</div>
+              <div><strong>Commission Products:</strong> {data.summary.total_applicable_products}</div>
+              <div><strong>Commission Plans:</strong> {data.commission_plans?.length || 0}</div>
+            </div>
+          </div>
+
+          {/* Commission Plans */}
+          {data.commission_plans && data.commission_plans.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <h3>💰 Commission Plans</h3>
+              {data.commission_plans.map(plan => (
+                <div key={plan.id} style={{ 
+                  backgroundColor: '#f3e5f5', 
+                  border: '1px solid #9c27b0',
+                  borderRadius: '8px', 
+                  padding: '15px',
+                  marginBottom: '10px'
+                }}>
+                  <h4 style={{ margin: '0 0 10px 0', color: '#7b1fa2' }}>
+                    {plan.name} (ID: {plan.id})
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+                    <div><strong>Type:</strong> {plan.type}</div>
+                    <div><strong>Rate:</strong> {formatCommission(plan)}</div>
+                    <div><strong>Recurring:</strong> {plan.recurring === '1' ? 'Yes' : 'No'}</div>
+                    <div><strong>Default:</strong> {plan.default === '1' ? 'Yes' : 'No'}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Products */}
+          {data.products && data.products.length > 0 ? (
+            <div>
+              <h3>🛍️ Available Products ({data.products.length})</h3>
+              <div style={{ display: 'grid', gap: '20px' }}>
+                {data.products.map(product => (
+                  <div key={product.id} style={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #ddd',
+                    borderRadius: '8px', 
+                    padding: '20px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
+                      <div>
+                        <h4 style={{ margin: '0 0 5px 0', color: '#0066cc' }}>
+                          {product.name} (ID: {product.id})
+                        </h4>
+                        <p style={{ margin: '0', color: '#666', fontSize: '14px' }}>
+                          Category: {product.category.name}
+                        </p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2e7d32' }}>
+                          Commission: {formatCommission(product.commission)}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          Plan: {product.commission.plan_name}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pricing */}
+                    <div style={{ 
+                      backgroundColor: '#f8f9fa', 
+                      padding: '15px', 
+                      borderRadius: '6px',
+                      marginBottom: '15px'
+                    }}>
+                      <h5 style={{ margin: '0 0 10px 0' }}>💰 Pricing & Commission</h5>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+                        <div>
+                          <strong>Monthly:</strong> {formatPrice(product.m)}
+                          {product.commission.monthly_amount > 0 && (
+                            <div style={{ color: '#2e7d32', fontSize: '12px' }}>
+                              Commission: {product.commission.monthly_amount} CZK
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <strong>Quarterly:</strong> {formatPrice(product.q)}
+                          {product.commission.quarterly_amount > 0 && (
+                            <div style={{ color: '#2e7d32', fontSize: '12px' }}>
+                              Commission: {product.commission.quarterly_amount} CZK
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <strong>Semi-annually:</strong> {formatPrice(product.s)}
+                          {product.commission.semiannually_amount > 0 && (
+                            <div style={{ color: '#2e7d32', fontSize: '12px' }}>
+                              Commission: {product.commission.semiannually_amount} CZK
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <strong>Annually:</strong> {formatPrice(product.a)}
+                          {product.commission.annually_amount > 0 && (
+                            <div style={{ color: '#2e7d32', fontSize: '12px' }}>
+                              Commission: {product.commission.annually_amount} CZK
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Product Details */}
+                    <div style={{ fontSize: '14px', color: '#666' }}>
+                      <div><strong>Type:</strong> {product.ptype}</div>
+                      <div><strong>Visible:</strong> {product.visible === '1' ? 'Yes' : 'No'}</div>
+                      <div><strong>Stock:</strong> {product.stock || 'Unlimited'}</div>
+                      <div><strong>Active Accounts:</strong> {product.accounts || '0'}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : data && (
+            <div style={{ 
+              backgroundColor: '#fff3e0', 
+              border: '1px solid #ff9800',
+              borderRadius: '8px', 
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <h3 style={{ color: '#f57c00' }}>⚠️ No Products Found</h3>
+              <p>No products with commissions found for affiliate ID {affiliateId}</p>
+            </div>
+          )}
+
+          {/* Raw Data (Collapsible) */}
+          <details style={{ marginTop: '30px' }}>
+            <summary style={{ 
+              cursor: 'pointer', 
+              padding: '10px', 
+              backgroundColor: '#f5f5f5',
+              borderRadius: '4px',
+              fontWeight: 'bold'
+            }}>
+              🔍 Raw API Response
+            </summary>
+            <pre style={{ 
+              backgroundColor: '#f8f9fa', 
+              padding: '15px', 
+              borderRadius: '4px',
+              overflow: 'auto',
+              fontSize: '12px',
+              marginTop: '10px'
+            }}>
+              {JSON.stringify(data, null, 2)}
+            </pre>
+          </details>
+        </div>
+      )}
+
+      {/* Quick Test Links */}
+      <div style={{ 
+        marginTop: '30px',
+        padding: '20px',
+        backgroundColor: '#f5f5f5',
+        borderRadius: '8px'
+      }}>
+        <h3>🔗 Quick Test Links</h3>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <a 
+            href="/affiliate-products-test?affiliate_id=1" 
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#0066cc', 
+              color: 'white', 
+              textDecoration: 'none',
+              borderRadius: '4px'
+            }}
+          >
+            Affiliate ID 1
+          </a>
+          <a 
+            href="/affiliate-products-test?affiliate_id=2" 
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#0066cc', 
+              color: 'white', 
+              textDecoration: 'none',
+              borderRadius: '4px'
+            }}
+          >
+            Affiliate ID 2
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}

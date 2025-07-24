@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 import VPSCartSidebar from '../components/VPSCartSidebar';
-import { getHostBillProductId } from '../lib/hostbill-config';
 
 const plans = [
   {
@@ -11,7 +10,7 @@ const plans = [
     ram: '4 GB',
     storage: '50 GB',
     price: '249 Kč',
-    hostbillPid: getHostBillProductId('1'), // Maps internal ID 1 to HostBill product ID
+    hostbillPid: 1,
     popular: false
   },
   {
@@ -21,7 +20,7 @@ const plans = [
     ram: '8 GB',
     storage: '100 GB',
     price: '499 Kč',
-    hostbillPid: getHostBillProductId('2'), // Maps internal ID 2 to HostBill product ID
+    hostbillPid: 2,
     popular: true
   },
   {
@@ -31,7 +30,7 @@ const plans = [
     ram: '16 GB',
     storage: '200 GB',
     price: '999 Kč',
-    hostbillPid: getHostBillProductId('3'), // Maps internal ID 3 to HostBill product ID
+    hostbillPid: 3,
     popular: false
   },
   {
@@ -41,7 +40,7 @@ const plans = [
     ram: '32 GB',
     storage: '400 GB',
     price: '1899 Kč',
-    hostbillPid: getHostBillProductId('4'), // Maps internal ID 4 to HostBill product ID
+    hostbillPid: 4,
     popular: false
   }
 ];

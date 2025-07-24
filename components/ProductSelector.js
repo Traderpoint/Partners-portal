@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PRODUCTS, ADDONS, PRODUCT_DEFINITIONS, ADDON_DEFINITIONS, getProductById, getAvailableAddonsForProduct, getHostBillProductId } from '../lib/hostbill-config.js';
+import { PRODUCTS, ADDONS, PRODUCT_DEFINITIONS, ADDON_DEFINITIONS, getProductById, getAvailableAddonsForProduct } from '../lib/hostbill-config.js';
 
 export default function ProductSelector({ onOrderCreate, affiliateId = null }) {
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -60,13 +60,6 @@ export default function ProductSelector({ onOrderCreate, affiliateId = null }) {
     });
 
     try {
-      const hostbillProductId = getHostBillProductId(selectedProduct.id);
-      console.log('🔍 Debug info:', {
-        selectedProductId: selectedProduct.id,
-        hostbillProductId: hostbillProductId,
-        selectedProduct: selectedProduct
-      });
-
       const response = await fetch('/api/hostbill/create-order', {
         method: 'POST',
         headers: {
@@ -74,7 +67,7 @@ export default function ProductSelector({ onOrderCreate, affiliateId = null }) {
         },
         body: JSON.stringify({
           client_id: '81', // WORKING - Test Partner's client ID (affiliate ID 1)
-          product_id: hostbillProductId, // Map internal ID to HostBill product ID
+          product_id: selectedProduct.id,
           cycle: cycle,
           affiliate_id: affiliateId,
           selected_addons: selectedAddons,
