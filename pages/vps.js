@@ -53,7 +53,7 @@ export default function VPS() {
   const { addItem, affiliateId, affiliateCode, setAffiliate } = useCart();
   const [affiliateInfo, setAffiliateInfo] = useState(null);
   const [affiliateValidated, setAffiliateValidated] = useState(false);
-  const { toasts, addToast, removeToast, showSuccess, showAffiliate, showError } = useToast();
+  const { toasts, addToast, removeToast, showSuccess } = useToast();
 
   // Handle affiliate tracking on page load
   useEffect(() => {
@@ -85,14 +85,15 @@ export default function VPS() {
                 setAffiliateInfo(result.affiliate);
 
                 // Show affiliate welcome toast
-                showAffiliate(
+                addToast(
                   `🎉 Vítejte! Přišli jste přes partnera ${result.affiliate.name}`,
+                  'success',
                   5000
                 );
               }
             } else {
               console.log('❌ Affiliate validation failed');
-              showError('Neplatný affiliate kód', 3000);
+              addToast('Neplatný affiliate kód', 'error', 3000);
             }
           } catch (error) {
             console.error('Error validating affiliate:', error);
@@ -116,7 +117,7 @@ export default function VPS() {
     if (typeof window !== 'undefined' && window.hostbillAffiliate) {
       window.hostbillAffiliate.trackPageView('/vps');
     }
-  }, [router, setAffiliate]);
+  }, []); // Run only once on mount
 
   const handleAddToCart = (plan) => {
     // Add item to cart

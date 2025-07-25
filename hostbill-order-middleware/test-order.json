@@ -1,0 +1,19 @@
+{
+  "customer": {
+    "firstName": "Jan",
+    "lastName": "Novák",
+    "email": "jan.novak.test14@example.com",
+    "phone": "+420123456789",
+    "address": "Testovací ulice 123",
+    "city": "Praha",
+    "postalCode": "11000",
+    "country": "CZ"
+  },
+  "items": [
+    {
+      "productId": "5",
+      "name": "VPS Start",
+      "price": 249
+    }
+  ]
+}
