@@ -1,6 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { useCart } from '../contexts/CartContext';
 import VPSCartSidebar from '../components/VPSCartSidebar';
+import { ToastContainer, useToast } from '../components/Toast';
+import { extractAffiliateParams, storeAffiliateData, validateAffiliateId } from '../utils/affiliate';
 
 const plans = [
   {
@@ -46,16 +49,77 @@ const plans = [
 ];
 
 export default function VPS() {
-  const { addItem } = useCart();
+  const router = useRouter();
+  const { addItem, affiliateId, affiliateCode, setAffiliate } = useCart();
+  const [affiliateInfo, setAffiliateInfo] = useState(null);
+  const [affiliateValidated, setAffiliateValidated] = useState(false);
+  const { toasts, addToast, removeToast, showSuccess, showAffiliate, showError } = useToast();
 
-  // Track page view for affiliate
+  // Handle affiliate tracking on page load
   useEffect(() => {
+    const handleAffiliateTracking = async () => {
+      // Extract affiliate parameters from URL
+      const affiliateParams = extractAffiliateParams(window.location.href);
+
+      if (affiliateParams.id || affiliateParams.code) {
+        console.log('🔍 Affiliate parameters found:', affiliateParams);
+
+        // Store affiliate data
+        storeAffiliateData(affiliateParams);
+
+        // Update cart context
+        setAffiliate(affiliateParams.id, affiliateParams.code);
+
+        // Validate affiliate ID
+        if (affiliateParams.id) {
+          try {
+            const isValid = await validateAffiliateId(affiliateParams.id);
+            if (isValid) {
+              console.log('✅ Affiliate validated successfully');
+              setAffiliateValidated(true);
+
+              // Get affiliate info for display
+              const response = await fetch(`/api/validate-affiliate?id=${affiliateParams.id}`);
+              const result = await response.json();
+              if (result.success && result.affiliate) {
+                setAffiliateInfo(result.affiliate);
+
+                // Show affiliate welcome toast
+                showAffiliate(
+                  `🎉 Vítejte! Přišli jste přes partnera ${result.affiliate.name}`,
+                  5000
+                );
+              }
+            } else {
+              console.log('❌ Affiliate validation failed');
+              showError('Neplatný affiliate kód', 3000);
+            }
+          } catch (error) {
+            console.error('Error validating affiliate:', error);
+          }
+        }
+
+        // Clean URL (remove affiliate parameters)
+        const url = new URL(window.location);
+        ['aff', 'affiliate', 'ref', 'aff_code', 'affiliate_code'].forEach(param => {
+          url.searchParams.delete(param);
+        });
+        router.replace(url.pathname + url.search, undefined, { shallow: true });
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      handleAffiliateTracking();
+    }
+
+    // Track page view for affiliate
     if (typeof window !== 'undefined' && window.hostbillAffiliate) {
       window.hostbillAffiliate.trackPageView('/vps');
     }
-  }, []);
+  }, [router, setAffiliate]);
 
   const handleAddToCart = (plan) => {
+    // Add item to cart
     addItem({
       id: plan.id,
       name: plan.name,
@@ -66,19 +130,93 @@ export default function VPS() {
       hostbillPid: plan.hostbillPid
     });
 
-    // Track affiliate conversion
+    // Enhanced affiliate tracking
+    console.log('🛒 Item added to cart:', plan.name);
+
+    if (affiliateId || affiliateCode) {
+      console.log('🎯 Affiliate tracking - Item added by affiliate:', {
+        affiliateId,
+        affiliateCode,
+        product: plan.name,
+        price: plan.price
+      });
+    }
+
+    // Track affiliate conversion (legacy)
     if (typeof window !== 'undefined' && window.hostbillAffiliate) {
       window.hostbillAffiliate.trackConversion({
         orderId: `cart-${Date.now()}`,
         amount: parseFloat(plan.price.replace(/[^\d]/g, '')),
         currency: 'CZK',
-        products: [plan.name]
+        products: [plan.name],
+        affiliate: {
+          id: affiliateId,
+          code: affiliateCode
+        }
       });
+    }
+
+    // Show success message with affiliate info
+    if (affiliateInfo) {
+      console.log(`✅ ${plan.name} přidán do košíku pro partnera ${affiliateInfo.name}`);
+      showSuccess(
+        `✅ ${plan.name} přidán do košíku! Partner: ${affiliateInfo.name}`,
+        4000
+      );
+    } else {
+      showSuccess(`✅ ${plan.name} přidán do košíku!`, 3000);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-hidden">
+      {/* Affiliate Banner */}
+      {affiliateInfo && affiliateValidated && (
+        <div className="relative z-50 bg-gradient-to-r from-green-500 to-blue-600 text-white py-3 px-4 shadow-lg">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  🎉 Přišli jste přes partnera: <span className="font-bold">{affiliateInfo.name}</span>
+                </p>
+                <p className="text-xs opacity-90">
+                  Vaše objednávka bude přiřazena k tomuto partnerovi pro sledování provizí
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
+                Partner ID: {affiliateInfo.id}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Affiliate Code Display (for debugging) */}
+      {(affiliateId || affiliateCode) && process.env.NODE_ENV === 'development' && (
+        <div className="relative z-40 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm">
+                  <strong>Debug:</strong> Affiliate ID: {affiliateId}, Code: {affiliateCode}, Validated: {affiliateValidated ? '✅' : '❌'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Animated Tech Background */}
       <div className="absolute inset-0">
         {/* Grid Pattern */}
@@ -219,10 +357,28 @@ export default function VPS() {
                     <div className="lg:w-1/3 lg:text-right">
                       <button
                         onClick={() => handleAddToCart(plan)}
-                        className="w-full lg:w-auto bg-primary-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-primary-700 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                        className={`w-full lg:w-auto px-6 py-3 rounded-xl font-bold shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${
+                          affiliateValidated
+                            ? 'bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white'
+                            : 'bg-primary-600 hover:bg-primary-700 text-white'
+                        } hover:shadow-xl`}
                       >
-                        Přidat do košíku
+                        {affiliateValidated ? (
+                          <div className="flex items-center justify-center space-x-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span>Přidat do košíku</span>
+                          </div>
+                        ) : (
+                          'Přidat do košíku'
+                        )}
                       </button>
+                      {affiliateValidated && (
+                        <p className="text-xs text-gray-500 mt-2 text-center lg:text-right">
+                          🎯 Partner provize aktivní
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -263,6 +419,9 @@ export default function VPS() {
           </div>
         </div>
       </div>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 }
