@@ -82,38 +82,28 @@ export default function Checkout() {
         newsletterSubscribe: formData.newsletterSubscribe
       };
 
-      // Send to HostBill API
-      const response = await fetch('/api/hostbill/create-order', {
+      // Send to new order processing API
+      const response = await fetch('/api/orders/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          client_id: '81', // Test Partner's client ID for affiliate ID 1
-          product_id: items[0]?.hostbillPid || '5', // Use first item's product ID or default to 5
-          cycle: 'm', // Monthly
-          affiliate_id: affiliateId || '1', // Use affiliate ID or default to 1
-          selected_addons: [],
-          config_options: {},
-          customer_data: orderData.customer
-        })
+        body: JSON.stringify(orderData)
       });
 
       const result = await response.json();
 
-      if (result.success && result.order_id) {
-        console.log('✅ HostBill order created:', result.order_id, 'Number:', result.order_number);
+      if (result.success) {
+        console.log('✅ Order processed successfully:', result.data);
 
-        // Clear cart and redirect to confirmation
+        // Store order details for success page
+        sessionStorage.setItem('orderResult', JSON.stringify(result.data));
+
+        // Clear cart and redirect to success page
         clearCart();
-
-        // Use order_number if available, otherwise use order_id
-        const orderIdentifier = result.order_number || result.order_id;
-        const orderParam = result.order_number ? 'orderNumber' : 'orderId';
-
-        router.push(`/order-confirmation?${orderParam}=${orderIdentifier}&affiliate=${affiliateId || '1'}&realOrder=true`);
+        router.push('/order-success');
       } else {
-        throw new Error('Chyba při vytváření objednávky');
+        throw new Error(result.error || 'Objednávka se nezdařila');
       }
     } catch (error) {
       console.error('Error creating order:', error);
