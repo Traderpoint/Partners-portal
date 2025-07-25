@@ -13,6 +13,23 @@ const { body, validationResult } = require('express-validator');
 const logger = require('./utils/logger');
 const HostBillClient = require('./lib/hostbill-client');
 const OrderProcessor = require('./lib/order-processor');
+const productMapper = require('./lib/product-mapper');
+
+// Calculate commission amount
+function calculateCommission(price, commissionInfo) {
+  if (!commissionInfo || !price) return 0;
+
+  const numericPrice = parseFloat(price);
+  const numericRate = parseFloat(commissionInfo.rate);
+
+  if (commissionInfo.type === 'Percent') {
+    return (numericPrice * numericRate / 100).toFixed(2);
+  } else if (commissionInfo.type === 'Fixed') {
+    return numericRate.toFixed(2);
+  }
+
+  return 0;
+}
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -58,13 +75,122 @@ const hostbillClient = new HostBillClient();
 const orderProcessor = new OrderProcessor(hostbillClient);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    port: PORT
-  });
+app.get('/health', async (req, res) => {
+  try {
+    // Check HostBill API connectivity
+    let hostbillStatus = 'unknown';
+    try {
+      const testResult = await hostbillClient.makeApiCall({
+        call: 'getOrderPages'
+      });
+      hostbillStatus = testResult ? 'connected' : 'disconnected';
+    } catch (error) {
+      hostbillStatus = 'disconnected';
+    }
+
+    // Get product mapping stats
+    const mappingStats = productMapper.getStats();
+
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      port: PORT,
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      hostbill_api: {
+        status: hostbillStatus,
+        url: process.env.HOSTBILL_API_URL
+      },
+      product_mapping: {
+        total_mappings: mappingStats.totalMappings,
+        cloud_vps_products: mappingStats.cloudVpsProducts.length,
+        hostbill_products: mappingStats.hostbillProducts.length
+      },
+      environment: {
+        node_env: process.env.NODE_ENV || 'development',
+        log_level: process.env.LOG_LEVEL || 'debug'
+      }
+    });
+  } catch (error) {
+    logger.error('Health check failed', { error: error.message });
+    res.status(500).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Product mapping endpoint
+app.get('/api/product-mapping', (req, res) => {
+  try {
+    const stats = productMapper.getStats();
+    res.json({
+      success: true,
+      ...stats,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Failed to get product mapping', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get product mapping',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Middleware statistics endpoint
+app.get('/api/stats', async (req, res) => {
+  try {
+    // Get product mapping stats
+    const mappingStats = productMapper.getStats();
+
+    // Check HostBill connectivity
+    let hostbillConnectivity = false;
+    let hostbillError = null;
+    try {
+      const testResult = await hostbillClient.makeApiCall({
+        call: 'getOrderPages'
+      });
+      hostbillConnectivity = !!testResult;
+    } catch (error) {
+      hostbillError = error.message;
+    }
+
+    res.json({
+      success: true,
+      server: {
+        status: 'running',
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        version: '1.0.0',
+        port: PORT,
+        environment: process.env.NODE_ENV || 'development'
+      },
+      hostbill: {
+        connected: hostbillConnectivity,
+        api_url: process.env.HOSTBILL_API_URL,
+        error: hostbillError
+      },
+      product_mapping: mappingStats,
+      configuration: {
+        log_level: process.env.LOG_LEVEL || 'debug',
+        default_currency: process.env.DEFAULT_CURRENCY || 'CZK',
+        default_payment_method: process.env.DEFAULT_PAYMENT_METHOD || 'banktransfer'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Failed to get middleware stats', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get middleware statistics',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // HostBill connection test endpoint
@@ -85,6 +211,419 @@ app.get('/api/test-connection', async (req, res) => {
       success: false,
       error: 'HostBill connection failed',
       details: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get all affiliates endpoint
+app.get('/api/affiliates', async (req, res) => {
+  try {
+    logger.info('Getting all affiliates');
+    const result = await hostbillClient.makeApiCall({
+      call: 'getAffiliates'
+    });
+
+    res.json({
+      success: true,
+      affiliates: result.affiliates || [],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Failed to get affiliates', { error: error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get affiliates',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get specific affiliate endpoint
+app.get('/api/affiliate/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    logger.info('Getting affiliate details', { affiliateId: id });
+
+    const result = await hostbillClient.validateAffiliate(id);
+
+    if (result) {
+      res.json({
+        success: true,
+        affiliate: result,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Affiliate not found or inactive',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    logger.error('Failed to get affiliate', { error: error.message, affiliateId: req.params.id });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get affiliate',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get affiliate products endpoint
+app.get('/api/affiliate/:id/products', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { mode = 'affiliate' } = req.query;
+    logger.info('Getting affiliate products', { affiliateId: id, mode });
+
+    // First validate the affiliate exists
+    const affiliate = await hostbillClient.validateAffiliate(id);
+    if (!affiliate) {
+      return res.status(404).json({
+        success: false,
+        error: 'Affiliate not found or inactive',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Get commission plans for this affiliate
+    let commissionPlans = [];
+    let applicableProducts = new Set();
+    let productCommissions = {};
+
+    try {
+      logger.info('Loading commission plans from HostBill API');
+      const commissionResult = await hostbillClient.makeApiCall({
+        call: 'getAffiliateCommisionPlans'
+      });
+
+      if (commissionResult && commissionResult.commisions) {
+        commissionPlans = commissionResult.commisions;
+
+        // Parse commission plans to extract applicable products
+        commissionPlans.forEach(plan => {
+          if (plan.applicable_products) {
+            const productIds = plan.applicable_products
+              .split(',')
+              .map(id => id.trim())
+              .filter(id => id && !id.startsWith('-')); // Filter out negative IDs
+
+            productIds.forEach(productId => {
+              applicableProducts.add(productId);
+              productCommissions[productId] = {
+                plan_id: plan.id,
+                plan_name: plan.name,
+                type: plan.type,
+                rate: plan.rate,
+                recurring: plan.recurring === '1'
+              };
+            });
+          }
+        });
+      }
+
+      logger.info('Commission plans processed', {
+        totalPlans: commissionPlans.length,
+        applicableProducts: applicableProducts.size
+      });
+    } catch (error) {
+      logger.warn('Failed to load commission plans', { error: error.message });
+    }
+
+    // Try to get real products from HostBill API
+    let productsWithCommissions = [];
+
+    try {
+      // Get products from HostBill using correct API workflow
+      logger.info('Loading products from HostBill API');
+
+      // Step 1: Get all orderpages
+      const orderPagesResult = await hostbillClient.makeApiCall({
+        call: 'getOrderPages'
+      });
+
+      if (!orderPagesResult || !orderPagesResult.categories) {
+        throw new Error('No orderpages returned from HostBill');
+      }
+
+      logger.debug('Found orderpages', {
+        count: orderPagesResult.categories.length,
+        orderpages: orderPagesResult.categories.map(cat => ({ id: cat.id, name: cat.name }))
+      });
+
+      // Step 2: Get products from all orderpages
+      let allProducts = [];
+
+      for (const orderpage of orderPagesResult.categories) {
+        try {
+          const productsResult = await hostbillClient.makeApiCall({
+            call: 'getProducts',
+            id: orderpage.id
+          });
+
+          if (productsResult && productsResult.products) {
+            // Convert products object to array
+            const categoryProducts = Object.values(productsResult.products);
+
+            // Filter products based on mode
+            let filteredProducts;
+            if (mode === 'all') {
+              // All products mode - return all products with commission info if available
+              filteredProducts = categoryProducts;
+            } else {
+              // Affiliate mode - only products that have commissions for this affiliate
+              filteredProducts = categoryProducts.filter(product =>
+                applicableProducts.has(product.id)
+              );
+            }
+
+            // Add orderpage info and commission details to each product
+            const products = filteredProducts.map(product => {
+              const commissionInfo = productCommissions[product.id];
+
+              // For all mode, provide default commission info if not available
+              const finalCommissionInfo = commissionInfo || (mode === 'all' ? {
+                plan_id: null,
+                plan_name: 'No commission plan',
+                type: 'Percent',
+                rate: '0',
+                recurring: false
+              } : null);
+
+              return {
+                ...product,
+                orderpage_id: orderpage.id,
+                orderpage_name: orderpage.name,
+                monthly_price: product.m,
+                quarterly_price: product.q,
+                semi_annually_price: product.s,
+                annually_price: product.a,
+                category: {
+                  id: orderpage.id,
+                  name: orderpage.name,
+                  description: orderpage.description || ''
+                },
+                commission: finalCommissionInfo ? {
+                  ...finalCommissionInfo,
+                  monthly_amount: calculateCommission(product.m, finalCommissionInfo),
+                  quarterly_amount: calculateCommission(product.q, finalCommissionInfo),
+                  semiannually_amount: calculateCommission(product.s, finalCommissionInfo),
+                  annually_amount: calculateCommission(product.a, finalCommissionInfo),
+                  has_commission: !!commissionInfo
+                } : null
+              };
+            });
+
+            allProducts = allProducts.concat(products);
+
+            logger.debug('Loaded products from orderpage', {
+              orderpageId: orderpage.id,
+              orderpage: orderpage.name,
+              productCount: products.length,
+              mode: mode,
+              filteredCount: filteredProducts.length,
+              totalCategoryProducts: categoryProducts.length
+            });
+          }
+        } catch (error) {
+          logger.warn('Failed to load products from orderpage', {
+            orderpageId: orderpage.id,
+            orderpage: orderpage.name,
+            error: error.message
+          });
+        }
+      }
+
+      if (allProducts.length === 0) {
+        throw new Error('No products found in any orderpage');
+      }
+
+      logger.info('Successfully loaded products from HostBill', {
+        totalProducts: allProducts.length,
+        productIds: allProducts.map(p => p.id),
+        productNames: allProducts.map(p => p.name)
+      });
+
+      // Products already have commission info added in the loop above
+      productsWithCommissions = allProducts;
+    } catch (error) {
+      logger.warn('Failed to load products from HostBill, using fallback', {
+        error: error.message
+      });
+
+      // Fallback to mock products matching real HostBill product IDs
+      productsWithCommissions = [
+        {
+          id: '10',
+          name: 'VPS Profi',
+          description: 'Virtuální servery',
+          monthly_price: '499',
+          quarterly_price: 'N/A',
+          semi_annually_price: 'N/A',
+          annually_price: 'N/A',
+          commission: {
+            type: 'Percent',
+            rate: '25'
+          }
+        },
+        {
+          id: '11',
+          name: 'VPS Premium',
+          description: 'Virtuální servery',
+          monthly_price: '899',
+          quarterly_price: 'N/A',
+          semi_annually_price: 'N/A',
+          annually_price: 'N/A',
+          commission: {
+            type: 'Percent',
+            rate: '25'
+          }
+        },
+        {
+          id: '12',
+          name: 'VPS Enterprise',
+          description: 'Virtuální servery',
+          monthly_price: '1299',
+          quarterly_price: 'N/A',
+          semi_annually_price: 'N/A',
+          annually_price: 'N/A',
+          commission: {
+            type: 'Percent',
+            rate: '25'
+          }
+        }
+      ];
+    }
+
+    res.json({
+      success: true,
+      mode: mode,
+      affiliate: affiliate,
+      commission_plans: commissionPlans,
+      products: productsWithCommissions,
+      summary: {
+        total_products: productsWithCommissions.length,
+        total_applicable_products: applicableProducts.size,
+        products_with_commission: productsWithCommissions.filter(p => p.commission?.has_commission).length,
+        products_without_commission: productsWithCommissions.filter(p => !p.commission?.has_commission).length,
+        commission_plans_count: commissionPlans.length
+      },
+      note: mode === 'all'
+        ? 'Middleware: All products from all categories - some may not have commission plans for this affiliate'
+        : 'Middleware: Only products with commission plans for this affiliate',
+      source: 'middleware_affiliate_products',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Failed to get affiliate products', {
+      error: error.message,
+      affiliateId: req.params.id
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get affiliate products',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get all products endpoint
+app.get('/api/products/all', async (req, res) => {
+  try {
+    logger.info('Getting all products from HostBill');
+
+    // Get products from HostBill using the same logic as affiliate products
+    // Get all orderpages
+    const orderPagesResult = await hostbillClient.makeApiCall({
+      call: 'getOrderPages'
+    });
+
+    if (!orderPagesResult || !orderPagesResult.categories) {
+      throw new Error('No orderpages returned from HostBill');
+    }
+
+    logger.debug('Found orderpages for all products', {
+      count: orderPagesResult.categories.length,
+      orderpages: orderPagesResult.categories.map(cat => ({ id: cat.id, name: cat.name }))
+    });
+
+    // Get products from all orderpages
+    let allProducts = [];
+
+    for (const orderpage of orderPagesResult.categories) {
+      try {
+        const productsResult = await hostbillClient.makeApiCall({
+          call: 'getProducts',
+          id: orderpage.id
+        });
+
+        if (productsResult && productsResult.products) {
+          // Convert products object to array and add orderpage info
+          const products = Object.values(productsResult.products).map(product => ({
+            ...product,
+            orderpage_id: orderpage.id,
+            orderpage_name: orderpage.name,
+            monthly_price: product.m,
+            quarterly_price: product.q,
+            semi_annually_price: product.s,
+            annually_price: product.a,
+            commission: {
+              type: 'Percent',
+              rate: '25' // Default commission rate
+            }
+          }));
+
+          allProducts = allProducts.concat(products);
+
+          logger.debug('Loaded products from orderpage for all products', {
+            orderpageId: orderpage.id,
+            orderpage: orderpage.name,
+            productCount: products.length
+          });
+        }
+      } catch (error) {
+        logger.warn('Failed to load products from orderpage for all products', {
+          orderpageId: orderpage.id,
+          orderpage: orderpage.name,
+          error: error.message
+        });
+      }
+    }
+
+    if (allProducts.length === 0) {
+      throw new Error('No products found in any orderpage');
+    }
+
+    logger.info('Successfully loaded all products', {
+      totalProducts: allProducts.length,
+      productIds: allProducts.map(p => p.id),
+      productNames: allProducts.map(p => p.name)
+    });
+
+    res.json({
+      success: true,
+      products: allProducts,
+      totalProducts: allProducts.length,
+      orderpages: orderPagesResult.categories.map(cat => ({ id: cat.id, name: cat.name })),
+      note: 'All products from all orderpages with default 25% commission',
+      source: 'middleware_all_products',
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('Failed to get all products', {
+      error: error.message,
+      stack: error.stack
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get all products',
+      error: error.message,
       timestamp: new Date().toISOString()
     });
   }
@@ -172,7 +711,14 @@ app.post('/api/process-order', [
     res.json({
       success: true,
       message: 'Order processed successfully',
-      data: result,
+      processingId: result.processingId,
+      clientId: result.client?.id,
+      orders: result.orders,
+      affiliateAssigned: !!result.affiliate,
+      affiliate: result.affiliate,
+      errors: result.errors,
+      source: 'middleware',
+      middleware_url: process.env.MIDDLEWARE_URL || 'http://localhost:3005',
       timestamp: new Date().toISOString()
     });
 

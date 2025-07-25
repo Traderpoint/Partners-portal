@@ -133,16 +133,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
-  const { affiliate_id } = req.query;
+  const { affiliate_id, mode = 'affiliate' } = req.query;
 
   if (!affiliate_id) {
-    return res.status(400).json({ 
-      success: false, 
-      error: 'Missing affiliate_id parameter' 
+    return res.status(400).json({
+      success: false,
+      error: 'Missing affiliate_id parameter'
     });
   }
 
-  console.log(`🎯 Getting products for affiliate ID: ${affiliate_id}`);
+  console.log(`🎯 Getting products for affiliate ID: ${affiliate_id}, mode: ${mode}`);
 
   try {
     // Step 1: Get affiliate details
@@ -226,15 +226,31 @@ export default async function handler(req, res) {
       if (productsResponse.success && productsResponse.data.products) {
         const categoryProducts = Object.values(productsResponse.data.products);
         
-        // Filter products that have commissions for this affiliate
-        const affiliateProducts = categoryProducts.filter(product => 
-          applicableProducts.includes(product.id)
-        );
+        // Filter products based on mode
+        let filteredProducts;
+        if (mode === 'all') {
+          // All products mode - return all products with commission info if available
+          filteredProducts = categoryProducts;
+        } else {
+          // Affiliate mode - only products that have commissions for this affiliate
+          filteredProducts = categoryProducts.filter(product =>
+            applicableProducts.includes(product.id)
+          );
+        }
 
         // Add category info and commission details to each product
-        affiliateProducts.forEach(product => {
+        filteredProducts.forEach(product => {
           const commissionInfo = productCommissions[product.id];
-          
+
+          // For all mode, provide default commission info if not available
+          const finalCommissionInfo = commissionInfo || (mode === 'all' ? {
+            plan_id: null,
+            plan_name: 'No commission plan',
+            type: 'Percent',
+            rate: '0',
+            recurring: false
+          } : null);
+
           allProducts.push({
             ...product,
             category: {
@@ -242,23 +258,25 @@ export default async function handler(req, res) {
               name: category.name,
               description: category.description
             },
-            commission: {
-              ...commissionInfo,
-              monthly_amount: calculateCommission(product.m, commissionInfo),
-              quarterly_amount: calculateCommission(product.q, commissionInfo),
-              semiannually_amount: calculateCommission(product.s, commissionInfo),
-              annually_amount: calculateCommission(product.a, commissionInfo)
-            }
+            commission: finalCommissionInfo ? {
+              ...finalCommissionInfo,
+              monthly_amount: calculateCommission(product.m, finalCommissionInfo),
+              quarterly_amount: calculateCommission(product.q, finalCommissionInfo),
+              semiannually_amount: calculateCommission(product.s, finalCommissionInfo),
+              annually_amount: calculateCommission(product.a, finalCommissionInfo),
+              has_commission: !!commissionInfo
+            } : null
           });
         });
 
-        console.log(`✅ Found ${affiliateProducts.length} products with commissions in ${category.name}`);
+        console.log(`✅ Found ${filteredProducts.length} products in ${category.name} (mode: ${mode})`);
       }
     }
 
     // Prepare final response
     const result = {
       success: true,
+      mode: mode,
       affiliate: affiliateResponse.data.affiliate,
       commission_plans: commissionResponse.data.commisions,
       categories: categories,
@@ -266,12 +284,17 @@ export default async function handler(req, res) {
       summary: {
         total_categories: categories.length,
         total_products: allProducts.length,
-        total_applicable_products: applicableProducts.length
+        total_applicable_products: applicableProducts.length,
+        products_with_commission: allProducts.filter(p => p.commission?.has_commission).length,
+        products_without_commission: allProducts.filter(p => !p.commission?.has_commission).length
       },
+      note: mode === 'all'
+        ? 'All products from all categories - some may not have commission plans for this affiliate'
+        : 'Only products with commission plans for this affiliate',
       timestamp: new Date().toISOString()
     };
 
-    console.log(`🎉 Successfully retrieved ${allProducts.length} products for affiliate ${affiliate_id}`);
+    console.log(`🎉 Successfully retrieved ${allProducts.length} products for affiliate ${affiliate_id} (mode: ${mode})`);
     
     res.status(200).json(result);
 

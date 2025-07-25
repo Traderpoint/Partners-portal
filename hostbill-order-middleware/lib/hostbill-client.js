@@ -250,7 +250,9 @@ class HostBillClient {
       logger.info('Creating order in HostBill', {
         clientId: orderData.clientId,
         productId: orderData.productId,
-        affiliateId: orderData.affiliateId
+        affiliateId: orderData.affiliateId,
+        configOptions: orderData.configOptions,
+        addons: orderData.addons?.length || 0
       });
 
       const orderParams = {
@@ -271,24 +273,79 @@ class HostBillClient {
       // Add configuration options if present
       if (orderData.configOptions) {
         Object.keys(orderData.configOptions).forEach(key => {
-          orderParams[`config_option_${key}`] = orderData.configOptions[key];
+          if (key.startsWith('config_option_')) {
+            // Already prefixed
+            orderParams[key] = orderData.configOptions[key];
+          } else {
+            // Add prefix
+            orderParams[`config_option_${key}`] = orderData.configOptions[key];
+          }
         });
       }
 
+      // Add addons if present
+      if (orderData.addons && orderData.addons.length > 0) {
+        orderData.addons.forEach((addon, index) => {
+          if (addon.addon_id && addon.enabled) {
+            orderParams[`addons[${addon.addon_id}][qty]`] = 1;
+            logger.debug('Added addon to order', {
+              addonId: addon.addon_id,
+              name: addon.name
+            });
+          }
+        });
+      }
+
+      // Add any additional parameters passed directly
+      Object.keys(orderData).forEach(key => {
+        if (!['clientId', 'productId', 'cycle', 'affiliateId', 'configOptions', 'addons', 'total'].includes(key)) {
+          orderParams[key] = orderData[key];
+        }
+      });
+
       const result = await this.makeApiCall(orderParams);
 
-      if (!result.order_id) {
-        throw new Error('Failed to create order - no order ID returned');
+      logger.debug('HostBill addOrder response', { result });
+
+      if (!result.order_id && !result.id && !result.success) {
+        logger.error('Order creation failed - full response', { result });
+        throw new Error(`Failed to create order - no order ID returned. Response: ${JSON.stringify(result)}`);
+      }
+
+      const orderId = result.order_id || result.id;
+
+      // Get order details to fetch the actual order number
+      let orderNumber = orderId; // fallback to order ID
+      try {
+        const orderDetails = await this.makeApiCall({
+          call: 'getOrderDetails',
+          id: orderId
+        });
+
+        if (orderDetails && orderDetails.details && orderDetails.details.number) {
+          orderNumber = orderDetails.details.number;
+          logger.debug('Retrieved order number from getOrderDetails', {
+            orderId,
+            orderNumber
+          });
+        }
+      } catch (error) {
+        logger.warn('Failed to get order details for order number', {
+          orderId,
+          error: error.message
+        });
       }
 
       logger.info('Order created successfully', {
-        orderId: result.order_id,
+        orderId: orderId,
+        orderNumber: orderNumber,
         invoiceId: result.invoice_id,
         clientId: orderData.clientId
       });
 
       return {
-        orderId: result.order_id,
+        orderId: orderId,
+        orderNumber: orderNumber,
         invoiceId: result.invoice_id,
         status: result.status || 'pending',
         total: result.total || orderData.total
@@ -305,44 +362,67 @@ class HostBillClient {
   }
 
   /**
-   * Assign client to affiliate
-   * @param {string} clientId - Client ID
+   * Assign affiliate to order using setOrderReferrer
+   * @param {string} orderId - Order ID
    * @param {string} affiliateId - Affiliate ID
    * @returns {Promise<Object>} Assignment result
    */
-  async assignClientToAffiliate(clientId, affiliateId) {
+  async assignOrderToAffiliate(orderId, affiliateId) {
     try {
-      logger.info('Assigning client to affiliate', {
-        clientId,
+      logger.info('Assigning order to affiliate', {
+        orderId,
         affiliateId
       });
 
       const result = await this.makeApiCall({
-        call: 'editClient',
-        client_id: clientId,
-        affiliate_id: affiliateId
+        call: 'setOrderReferrer',
+        id: orderId,
+        referral: affiliateId
       });
 
-      logger.info('Client assigned to affiliate successfully', {
-        clientId,
-        affiliateId
+      logger.info('Order assigned to affiliate successfully', {
+        orderId,
+        affiliateId,
+        result
       });
 
       return {
         success: true,
-        clientId,
+        orderId,
         affiliateId,
-        message: 'Client assigned to affiliate successfully'
+        message: 'Order assigned to affiliate successfully',
+        result
       };
 
     } catch (error) {
-      logger.error('Failed to assign client to affiliate', {
-        clientId,
+      logger.error('Failed to assign order to affiliate', {
+        orderId,
         affiliateId,
         error: error.message
       });
       throw error;
     }
+  }
+
+  /**
+   * Legacy method - kept for backward compatibility
+   * Note: HostBill doesn't have direct client-to-affiliate assignment API
+   * Affiliate assignment should be done at order level using setOrderReferrer
+   */
+  async assignClientToAffiliate(clientId, affiliateId) {
+    logger.warn('assignClientToAffiliate is deprecated - affiliate assignment should be done at order level', {
+      clientId,
+      affiliateId
+    });
+
+    // Return success but don't actually do anything
+    // The affiliate assignment will be handled at order level
+    return {
+      success: true,
+      clientId,
+      affiliateId,
+      message: 'Affiliate assignment will be handled at order level'
+    };
   }
 
   /**
@@ -352,18 +432,25 @@ class HostBillClient {
    */
   async validateAffiliate(affiliateId) {
     try {
+      // Get all affiliates and find the specific one
       const result = await this.makeApiCall({
-        call: 'getAffiliate',
-        affiliate_id: affiliateId
+        call: 'getAffiliates'
       });
 
-      if (result.affiliate && result.affiliate.status === 'Active') {
-        return {
-          id: result.affiliate.id,
-          name: result.affiliate.name || `${result.affiliate.firstname} ${result.affiliate.lastname}`,
-          status: result.affiliate.status,
-          email: result.affiliate.email
-        };
+      if (result.affiliates && Array.isArray(result.affiliates)) {
+        const affiliate = result.affiliates.find(aff => aff.id === affiliateId.toString());
+
+        if (affiliate && affiliate.status === 'Active') {
+          return {
+            id: affiliate.id,
+            name: affiliate.name || `${affiliate.firstname} ${affiliate.lastname}`,
+            status: affiliate.status,
+            email: affiliate.email,
+            firstname: affiliate.firstname,
+            lastname: affiliate.lastname,
+            companyname: affiliate.companyname
+          };
+        }
       }
 
       return null;

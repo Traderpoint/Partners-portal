@@ -5,6 +5,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
+const productMapper = require('./product-mapper');
 
 class OrderProcessor {
   constructor(hostbillClient) {
@@ -81,66 +82,107 @@ class OrderProcessor {
 
       result.client = client;
 
-      // Step 3: Assign client to affiliate if validated
+      // Step 3: Note about affiliate assignment
+      // Affiliate assignment will be done at order level using setOrderReferrer
       if (result.affiliate && client.id) {
-        try {
-          logger.info('Assigning client to affiliate', {
-            processingId,
-            clientId: client.id,
-            affiliateId: result.affiliate.id
-          });
-
-          await this.hostbillClient.assignClientToAffiliate(client.id, result.affiliate.id);
-          
-          logger.info('Client assigned to affiliate successfully', {
-            processingId,
-            clientId: client.id,
-            affiliateId: result.affiliate.id
-          });
-        } catch (error) {
-          logger.error('Failed to assign client to affiliate', {
-            processingId,
-            clientId: client.id,
-            affiliateId: result.affiliate.id,
-            error: error.message
-          });
-          result.errors.push(`Failed to assign client to affiliate: ${error.message}`);
-        }
+        logger.info('Affiliate validated - will be assigned to orders', {
+          processingId,
+          clientId: client.id,
+          affiliateId: result.affiliate.id
+        });
       }
 
       // Step 4: Create orders for each item
       for (const item of orderData.items) {
         try {
+          // Map Cloud VPS product ID to HostBill product ID
+          const hostbillProductId = productMapper.mapToHostBill(item.productId);
+
+          if (!hostbillProductId) {
+            throw new Error(`No HostBill mapping found for Cloud VPS product ID: ${item.productId}`);
+          }
+
           logger.info('Creating order for item', {
             processingId,
             clientId: client.id,
-            productId: item.productId,
+            cloudVpsProductId: item.productId,
+            hostbillProductId: hostbillProductId,
             productName: item.name
           });
 
-          const order = await this.hostbillClient.createOrder({
+          // Prepare enhanced order data with config options
+          const orderPayload = {
             clientId: client.id,
-            productId: item.productId,
+            productId: hostbillProductId,
             cycle: item.cycle || 'm',
             paymentMethod: orderData.paymentMethod || 'banktransfer',
             affiliateId: result.affiliate?.id,
-            configOptions: item.configOptions,
             total: item.price
+          };
+
+          // Add configuration options if provided
+          if (item.configOptions) {
+            Object.keys(item.configOptions).forEach(key => {
+              if (item.configOptions[key] !== undefined && item.configOptions[key] !== null) {
+                orderPayload[key] = item.configOptions[key];
+              }
+            });
+          }
+
+          // Add addons if provided
+          if (orderData.addons && orderData.addons.length > 0) {
+            orderPayload.addons = orderData.addons.filter(addon => addon.enabled && addon.addon_id);
+          }
+
+          logger.info('Enhanced order payload', {
+            processingId,
+            orderPayload: JSON.stringify(orderPayload, null, 2)
           });
+
+          const order = await this.hostbillClient.createOrder(orderPayload);
 
           result.orders.push({
             ...order,
             productName: item.name,
-            productId: item.productId,
+            cloudVpsProductId: item.productId,
+            hostbillProductId: hostbillProductId,
             price: item.price
           });
 
           logger.info('Order created successfully', {
             processingId,
             orderId: order.orderId,
+            orderNumber: order.orderNumber,
             invoiceId: order.invoiceId,
             productName: item.name
           });
+
+          // Step 4.1: Assign order to affiliate if present
+          if (result.affiliate && order.orderId) {
+            try {
+              logger.info('Assigning order to affiliate', {
+                processingId,
+                orderId: order.orderId,
+                affiliateId: result.affiliate.id
+              });
+
+              await this.hostbillClient.assignOrderToAffiliate(order.orderId, result.affiliate.id);
+
+              logger.info('Order assigned to affiliate successfully', {
+                processingId,
+                orderId: order.orderId,
+                affiliateId: result.affiliate.id
+              });
+            } catch (error) {
+              logger.error('Failed to assign order to affiliate', {
+                processingId,
+                orderId: order.orderId,
+                affiliateId: result.affiliate.id,
+                error: error.message
+              });
+              result.errors.push(`Failed to assign order ${order.orderId} to affiliate: ${error.message}`);
+            }
+          }
 
         } catch (error) {
           logger.error('Failed to create order for item', {

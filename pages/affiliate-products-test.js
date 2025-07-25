@@ -9,6 +9,7 @@ export default function AffiliateProductsTest() {
   const [error, setError] = useState(null);
   const [affiliates, setAffiliates] = useState([]);
   const [affiliatesLoading, setAffiliatesLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('affiliate'); // 'affiliate' or 'all'
 
   // Load all affiliates on component mount
   useEffect(() => {
@@ -23,6 +24,13 @@ export default function AffiliateProductsTest() {
       loadAffiliateProducts(affiliate_id);
     }
   }, [router.query]);
+
+  // Reload products when view mode changes
+  useEffect(() => {
+    if (viewMode === 'all' || affiliateId) {
+      loadAffiliateProducts();
+    }
+  }, [viewMode]);
 
   const loadAllAffiliates = async () => {
     setAffiliatesLoading(true);
@@ -50,8 +58,17 @@ export default function AffiliateProductsTest() {
     setData(null);
 
     try {
-      console.log(`🔍 Loading products for affiliate ID: ${affId}`);
-      const response = await fetch(`/api/hostbill/get-affiliate-products?affiliate_id=${affId}`);
+      let url, logMessage;
+      if (viewMode === 'all') {
+        url = `/api/hostbill/get-affiliate-products?affiliate_id=${affId}&mode=all`;
+        logMessage = `🔍 Loading ALL products for affiliate ID: ${affId} (with commission info)`;
+      } else {
+        url = `/api/hostbill/get-affiliate-products?affiliate_id=${affId}&mode=affiliate`;
+        logMessage = `🔍 Loading APPLIED products for affiliate ID: ${affId} (commission plans only)`;
+      }
+
+      console.log(logMessage);
+      const response = await fetch(url);
       const result = await response.json();
 
       if (result.success) {
@@ -86,8 +103,8 @@ export default function AffiliateProductsTest() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h1>🎯 HostBill Affiliate Products Test</h1>
-      <p>Test komplexního API pro získání produktů s provizemi podle affiliate ID</p>
+      <h1>🎯 Direct HostBill Products Test</h1>
+      <p>Test přímého API pro získání produktů podle affiliate ID nebo všech produktů</p>
 
       {/* Quick Affiliate Links */}
       <div style={{
@@ -152,9 +169,33 @@ export default function AffiliateProductsTest() {
         marginBottom: '20px' 
       }}>
         <h3>🔧 Test Parameters</h3>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+
+        {/* View Mode Selector */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '15px' }}>
           <label>
-            <strong>Affiliate ID:</strong>
+            <strong>View Mode:</strong>
+            <select
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value)}
+              style={{
+                marginLeft: '10px',
+                padding: '5px 10px',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                fontSize: '14px'
+              }}
+            >
+              <option value="affiliate">Applied Affiliate Products (Commission Plans Only)</option>
+              <option value="all">All Products (With Commission Info)</option>
+            </select>
+          </label>
+        </div>
+
+        {/* Affiliate ID Input - only show when affiliate mode */}
+        {viewMode === 'affiliate' && (
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <label>
+              <strong>Affiliate ID:</strong>
             <input
               type="text"
               value={affiliateId}
@@ -182,7 +223,28 @@ export default function AffiliateProductsTest() {
           >
             {loading ? '⏳ Loading...' : '🔍 Load Products'}
           </button>
-        </div>
+          </div>
+        )}
+
+        {/* Load All Products Button - only show when all mode */}
+        {viewMode === 'all' && (
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              onClick={() => loadAffiliateProducts()}
+              disabled={loading}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: loading ? '#ccc' : '#0066cc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: loading ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {loading ? '⏳ Loading...' : '🔍 Load All Products'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Loading State */}
@@ -194,8 +256,8 @@ export default function AffiliateProductsTest() {
           borderRadius: '8px',
           marginBottom: '20px'
         }}>
-          <h3>⏳ Loading affiliate products...</h3>
-          <p>Fetching data from HostBill API...</p>
+          <h3>⏳ Loading products...</h3>
+          <p>Fetching data directly from HostBill API...</p>
         </div>
       )}
 
@@ -245,13 +307,28 @@ export default function AffiliateProductsTest() {
             padding: '20px',
             marginBottom: '20px'
           }}>
-            <h3 style={{ color: '#f57c00', margin: '0 0 15px 0' }}>📊 Summary</h3>
+            <h3 style={{ color: '#f57c00', margin: '0 0 15px 0' }}>
+              📊 Summary - {data.mode === 'all' ? 'All Products Mode' : 'Applied Products Mode'}
+            </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
               <div><strong>Categories:</strong> {data.summary.total_categories}</div>
-              <div><strong>Available Products:</strong> {data.summary.total_products}</div>
-              <div><strong>Commission Products:</strong> {data.summary.total_applicable_products}</div>
+              <div><strong>Total Products:</strong> {data.summary.total_products}</div>
+              <div><strong>With Commission:</strong> {data.summary.products_with_commission || data.summary.total_applicable_products}</div>
+              <div><strong>Without Commission:</strong> {data.summary.products_without_commission || 0}</div>
               <div><strong>Commission Plans:</strong> {data.commission_plans?.length || 0}</div>
             </div>
+            {data.note && (
+              <div style={{
+                marginTop: '10px',
+                padding: '10px',
+                backgroundColor: 'rgba(255,152,0,0.1)',
+                borderRadius: '4px',
+                fontSize: '14px',
+                color: '#f57c00'
+              }}>
+                ℹ️ {data.note}
+              </div>
+            )}
           </div>
 
           {/* Commission Plans */}
@@ -303,12 +380,25 @@ export default function AffiliateProductsTest() {
                         </p>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2e7d32' }}>
-                          Commission: {formatCommission(product.commission)}
+                        <div style={{
+                          fontSize: '18px',
+                          fontWeight: 'bold',
+                          color: product.commission?.has_commission ? '#2e7d32' : '#f57c00'
+                        }}>
+                          {product.commission?.has_commission ? (
+                            <>Commission: {formatCommission(product.commission)}</>
+                          ) : (
+                            <>No Commission Plan</>
+                          )}
                         </div>
                         <div style={{ fontSize: '12px', color: '#666' }}>
-                          Plan: {product.commission.plan_name}
+                          Plan: {product.commission?.plan_name || 'None'}
                         </div>
+                        {product.commission?.has_commission === false && (
+                          <div style={{ fontSize: '10px', color: '#f57c00', marginTop: '2px' }}>
+                            ⚠️ Not applicable for this affiliate
+                          </div>
+                        )}
                       </div>
                     </div>
 

@@ -42,6 +42,11 @@ export default function Navbar() {
             <Link href="/pricing" className="hover:text-primary-500">Ceník</Link>
             <Link href="/about" className="hover:text-primary-500">O nás</Link>
             <Link href="/contact" className="hover:text-primary-500">Kontakt</Link>
+            {process.env.NODE_ENV === 'development' && (
+              <Link href="/test-portal" className="hover:text-red-500 text-red-600 font-semibold">
+                🧪 Test
+              </Link>
+            )}
           </div>
           <div className="flex items-center space-x-4">
             <CartIcon onClick={() => setIsCartOpen(true)} />

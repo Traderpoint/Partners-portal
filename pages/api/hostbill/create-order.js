@@ -3,6 +3,22 @@ import https from 'https';
 import { URL } from 'url';
 import { HOSTBILL_CONFIG, createOrderPayload, createAffiliatePayload, getProductById, getAddonById } from '../../../lib/hostbill-config.js';
 
+// Product mapping (Cloud VPS -> HostBill)
+const PRODUCT_MAPPING = {
+  '1': '10', // VPS Basic -> VPS Profi
+  '2': '11', // VPS Pro -> VPS Premium
+  '3': '12', // VPS Premium -> VPS Enterprise
+  '4': '5'   // VPS Enterprise -> VPS Start
+};
+
+function mapProductId(cloudVpsProductId) {
+  const hostbillId = PRODUCT_MAPPING[String(cloudVpsProductId)];
+  if (!hostbillId) {
+    throw new Error(`No HostBill mapping found for Cloud VPS product ID: ${cloudVpsProductId}`);
+  }
+  return hostbillId;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -27,21 +43,25 @@ export default async function handler(req, res) {
     });
   }
 
+  // Map Cloud VPS product ID to HostBill product ID
+  const hostbillProductId = mapProductId(product_id);
+
   console.log('🛒 Creating order with affiliate:', {
     client_id,
-    product_id,
+    cloudVpsProductId: product_id,
+    hostbillProductId: hostbillProductId,
     cycle,
     affiliate_id,
     selected_addons,
     config_options
   });
 
-  // Validate product exists
-  const product = getProductById(product_id);
+  // Validate product exists (using HostBill product ID)
+  const product = getProductById(hostbillProductId);
   if (!product) {
     return res.status(400).json({
       success: false,
-      error: `Product ID ${product_id} not found. Available products: ${Object.keys(getProductById).join(', ')}`
+      error: `HostBill Product ID ${hostbillProductId} not found (mapped from Cloud VPS ID ${product_id}). Available products: ${Object.keys(getProductById).join(', ')}`
     });
   }
 
@@ -53,10 +73,10 @@ export default async function handler(req, res) {
   };
 
   try {
-    // Step 1: Create the order with addons and config
+    // Step 1: Create the order with addons and config (using HostBill product ID)
     const orderPayload = createOrderPayload(
       client_id,
-      product_id,
+      hostbillProductId,
       cycle,
       selected_addons,
       config_options,
@@ -68,22 +88,19 @@ export default async function handler(req, res) {
     if (orderResponse.success && orderResponse.data.success === true) {
       orderResult.order_id = orderResponse.data.order_id;
 
-      // Get order number from getOrders API
+      // Get order number from getOrderDetails API
       try {
-        const ordersPayload = {
-          call: 'getOrders',
+        const orderDetailsPayload = {
+          call: 'getOrderDetails',
           api_id: HOSTBILL_CONFIG.apiId,
           api_key: HOSTBILL_CONFIG.apiKey,
-          limit: 5
+          id: orderResponse.data.order_id
         };
 
-        const ordersResponse = await makeHostBillAPICall(ordersPayload);
-        if (ordersResponse.success && ordersResponse.data.orders) {
-          const createdOrder = ordersResponse.data.orders.find(order => order.id === orderResponse.data.order_id.toString());
-          if (createdOrder && createdOrder.number) {
-            orderResult.order_number = createdOrder.number;
-            console.log('✅ Order number found:', createdOrder.number);
-          }
+        const orderDetailsResponse = await makeHostBillAPICall(orderDetailsPayload);
+        if (orderDetailsResponse.success && orderDetailsResponse.data.details && orderDetailsResponse.data.details.number) {
+          orderResult.order_number = orderDetailsResponse.data.details.number;
+          console.log('✅ Order number found:', orderDetailsResponse.data.details.number);
         }
       } catch (numberError) {
         console.warn('⚠️ Could not get order number:', numberError.message);
@@ -94,6 +111,8 @@ export default async function handler(req, res) {
         status: 'success',
         order_id: orderResponse.data.order_id,
         order_number: orderResult.order_number,
+        cloudVpsProductId: product_id,
+        hostbillProductId: hostbillProductId,
         message: 'Order created successfully'
       });
 
