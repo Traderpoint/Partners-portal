@@ -34,7 +34,7 @@ class HostBillClient {
   }
 
   /**
-   * Make API call to HostBill
+   * Make API call to HostBill using proven working method from test portal
    * @param {Object} params - API parameters
    * @returns {Promise<Object>} API response
    */
@@ -522,6 +522,257 @@ class HostBillClient {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return password;
+  }
+
+  /**
+   * Get available payment gateways using HostBill getPaymentModules API
+   * @returns {Promise<Array>} List of payment gateways
+   */
+  async getPaymentGateways() {
+    try {
+      logger.info('Getting available payment gateways from HostBill API');
+
+      // First, check if getPaymentModules is available
+      let apiMethods;
+      try {
+        apiMethods = await this.makeApiCall({
+          call: 'getAPIMethods'
+        });
+
+        if (!apiMethods.methods || !apiMethods.methods.includes('getPaymentModules')) {
+          logger.warn('getPaymentModules not available, using fallback');
+          return this.getFallbackGateways();
+        }
+      } catch (methodsError) {
+        logger.warn('Failed to get API methods, using fallback:', methodsError.message);
+        return this.getFallbackGateways();
+      }
+
+      // Get active payment modules from HostBill
+      let paymentModules;
+      try {
+        paymentModules = await this.makeApiCall({
+          call: 'getPaymentModules'
+        });
+
+        if (!paymentModules.success || !paymentModules.modules) {
+          logger.warn('Failed to get payment modules, using fallback');
+          return this.getFallbackGateways();
+        }
+      } catch (modulesError) {
+        logger.warn('Failed to get payment modules, using fallback:', modulesError.message);
+        return this.getFallbackGateways();
+      }
+
+      // Map HostBill modules to our gateway format
+      const availableGateways = [];
+      const modules = paymentModules.modules;
+
+      logger.info('Active HostBill payment modules:', modules);
+
+      // Map known modules to our gateway IDs
+      const moduleMapping = {
+        '10': { id: '5', name: 'PayU', method: 'payu' },
+        '112': { id: '2', name: 'PayPal Checkout v2', method: 'paypal' },
+        '121': { id: '1', name: 'Stripe Intents - 3D Secure', method: 'card' }
+      };
+
+      // Add active modules
+      for (const [moduleId, moduleName] of Object.entries(modules)) {
+        const mapping = moduleMapping[moduleId];
+
+        if (mapping) {
+          availableGateways.push({
+            id: mapping.id,
+            name: moduleName,
+            method: mapping.method,
+            enabled: true,
+            hostbillModuleId: moduleId,
+            source: 'hostbill-api'
+          });
+          logger.info(`✅ Active module: ${moduleName} (${moduleId}) -> Gateway ${mapping.id}`);
+        } else {
+          // Unknown module, add it anyway
+          availableGateways.push({
+            id: moduleId,
+            name: moduleName,
+            method: `module${moduleId}`,
+            enabled: true,
+            hostbillModuleId: moduleId,
+            source: 'hostbill-api',
+            unknown: true
+          });
+          logger.info(`⚠️ Unknown module: ${moduleName} (${moduleId})`);
+        }
+      }
+
+      // Add common gateways that might not be in the mapping
+      const commonGateways = [
+        { id: '3', name: 'Bank Transfer', method: 'banktransfer' },
+        { id: '4', name: 'Cryptocurrency', method: 'crypto' }
+      ];
+
+      for (const gateway of commonGateways) {
+        if (!availableGateways.find(g => g.id === gateway.id)) {
+          availableGateways.push({
+            ...gateway,
+            enabled: false,
+            source: 'default',
+            note: 'Not found in active HostBill modules'
+          });
+        }
+      }
+
+      logger.info('Payment gateways mapped', {
+        total: availableGateways.length,
+        active: availableGateways.filter(g => g.enabled).length,
+        inactive: availableGateways.filter(g => !g.enabled).length
+      });
+
+      return availableGateways;
+    } catch (error) {
+      logger.error('Failed to get payment gateways from HostBill API', {
+        error: error.message
+      });
+
+      return this.getFallbackGateways();
+    }
+  }
+
+  /**
+   * Get fallback gateways when API is not available
+   * @returns {Array} Fallback gateway list
+   */
+  getFallbackGateways() {
+    logger.info('Using fallback payment gateways');
+    return [
+      { id: '1', name: 'Credit Card', method: 'card', enabled: true, source: 'fallback' },
+      { id: '2', name: 'PayPal', method: 'paypal', enabled: true, source: 'fallback' },
+      { id: '3', name: 'Bank Transfer', method: 'banktransfer', enabled: true, source: 'fallback' },
+      { id: '4', name: 'Cryptocurrency', method: 'crypto', enabled: true, source: 'fallback' },
+      { id: '5', name: 'PayU', method: 'payu', enabled: true, source: 'fallback' }
+    ];
+  }
+
+  /**
+   * Process payment for invoice
+   * @param {Object} paymentData - Payment information
+   * @returns {Promise<Object>} Payment result
+   */
+  async processPayment(paymentData) {
+    try {
+      logger.info('Processing payment', {
+        invoiceId: paymentData.invoiceId,
+        amount: paymentData.amount,
+        gateway: paymentData.gateway
+      });
+
+      const result = await this.makeApiCall({
+        call: 'addInvoicePayment',
+        id: paymentData.invoiceId,
+        amount: paymentData.amount,
+        paymentmodule: paymentData.gatewayId,
+        fee: paymentData.fee || 0,
+        date: paymentData.date || new Date().toISOString().split('T')[0],
+        transnumber: paymentData.transactionId,
+        send_email: paymentData.sendEmail ? 1 : 0
+      });
+
+      logger.info('Payment processed successfully', {
+        invoiceId: paymentData.invoiceId,
+        transactionId: paymentData.transactionId,
+        result
+      });
+
+      return result;
+    } catch (error) {
+      logger.error('Failed to process payment', {
+        invoiceId: paymentData.invoiceId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Charge credit card for invoice
+   * @param {string} invoiceId - Invoice ID
+   * @param {Object} options - Charging options
+   * @returns {Promise<Object>} Charge result
+   */
+  async chargeCreditCard(invoiceId, options = {}) {
+    try {
+      logger.info('Charging credit card', {
+        invoiceId,
+        cardId: options.cardId,
+        amount: options.amount
+      });
+
+      const params = {
+        call: 'chargeCreditCard',
+        id: invoiceId
+      };
+
+      if (options.cardId) {
+        params.card_id = options.cardId;
+      }
+
+      if (options.amount) {
+        params['custom[amount]'] = options.amount;
+      }
+
+      const result = await this.makeApiCall(params);
+
+      logger.info('Credit card charged successfully', {
+        invoiceId,
+        result
+      });
+
+      return result;
+    } catch (error) {
+      logger.error('Failed to charge credit card', {
+        invoiceId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get invoice payment URL
+   * @param {string} invoiceId - Invoice ID
+   * @param {string} gatewayId - Payment gateway ID
+   * @returns {Promise<Object>} Payment URL data
+   */
+  async getInvoicePaymentUrl(invoiceId, gatewayId) {
+    try {
+      logger.info('Getting invoice payment URL', {
+        invoiceId,
+        gatewayId
+      });
+
+      // Generate payment URL for HostBill client area
+      const baseUrl = process.env.HOSTBILL_CLIENT_URL || process.env.HOSTBILL_API_URL.replace('/admin', '');
+      const paymentUrl = `${baseUrl}/cart.php?a=complete&i=${invoiceId}&gateway=${gatewayId}`;
+
+      logger.info('Payment URL generated', {
+        invoiceId,
+        paymentUrl
+      });
+
+      return {
+        paymentUrl,
+        invoiceId,
+        gatewayId
+      };
+    } catch (error) {
+      logger.error('Failed to get payment URL', {
+        invoiceId,
+        gatewayId,
+        error: error.message
+      });
+      throw error;
+    }
   }
 }
 

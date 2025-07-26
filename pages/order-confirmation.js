@@ -4,8 +4,9 @@ import Link from 'next/link';
 
 export default function OrderConfirmation() {
   const router = useRouter();
-  const { orderId } = router.query;
+  const { orderId, paymentId, manual } = router.query;
   const [orderDetails, setOrderDetails] = useState(null);
+  const [paymentInstructions, setPaymentInstructions] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,12 +17,28 @@ export default function OrderConfirmation() {
       setTimeout(() => {
         setOrderDetails({
           id: orderId,
-          status: 'confirmed',
+          status: manual === 'true' ? 'pending_payment' : 'confirmed',
           createdAt: new Date().toISOString(),
           affiliateId: affiliate || '1',
-          product: 'VPS Basic',
-          price: '299 CZK/měsíc'
+          product: 'VPS Start',
+          price: '1 CZK', // Test amount
+          paymentMethod: getPaymentMethodFromId(paymentId)
         });
+
+        // Add payment instructions for manual payments
+        if (manual === 'true') {
+          setPaymentInstructions({
+            method: 'Bankovní převod',
+            amount: '1 CZK',
+            accountNumber: '123456789/0100',
+            bankName: 'Komerční banka',
+            variableSymbol: orderId.replace(/[^0-9]/g, '').slice(-10),
+            specificSymbol: paymentId?.replace(/[^0-9]/g, '').slice(-10) || '001',
+            message: `Platba za objednávku ${orderId}`,
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('cs-CZ')
+          });
+        }
+
         setLoading(false);
       }, 1000);
 
@@ -30,7 +47,19 @@ export default function OrderConfirmation() {
         trackConversion(orderId, affiliate);
       }
     }
-  }, [orderId, router.query]);
+  }, [orderId, paymentId, manual, router.query]);
+
+  const getPaymentMethodFromId = (paymentId) => {
+    if (!paymentId) return 'Neznámá';
+
+    const id = paymentId.toLowerCase();
+    if (id.includes('card') || id.includes('stripe')) return 'Platební karta';
+    if (id.includes('paypal')) return 'PayPal';
+    if (id.includes('bank')) return 'Bankovní převod';
+    if (id.includes('crypto')) return 'Kryptoměny';
+
+    return 'Online platba';
+  };
 
   const trackConversion = async (orderId, affiliateId) => {
     try {
@@ -101,10 +130,16 @@ export default function OrderConfirmation() {
           </svg>
         </div>
         <h1 className="text-3xl font-bold text-green-600 mb-2">
-          Objednávka byla úspěšně vytvořena!
+          {orderDetails?.status === 'pending_payment'
+            ? 'Objednávka vytvořena - čeká na platbu'
+            : 'Objednávka byla úspěšně vytvořena!'
+          }
         </h1>
         <p className="text-gray-600">
-          Děkujeme za vaši objednávku. Brzy vás budeme kontaktovat.
+          {orderDetails?.status === 'pending_payment'
+            ? 'Vaše objednávka byla vytvořena. Pro dokončení prosím proveďte platbu podle instrukcí níže.'
+            : 'Děkujeme za vaši objednávku. Brzy vás budeme kontaktovat.'
+          }
         </p>
       </div>
 
@@ -127,12 +162,99 @@ export default function OrderConfirmation() {
           
           <div className="flex justify-between">
             <span className="text-gray-600">Stav:</span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-              Čeká na zpracování
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              orderDetails?.status === 'pending_payment'
+                ? 'bg-orange-100 text-orange-800'
+                : 'bg-yellow-100 text-yellow-800'
+            }`}>
+              {orderDetails?.status === 'pending_payment' ? 'Čeká na platbu' : 'Čeká na zpracování'}
             </span>
+          </div>
+
+          {orderDetails?.paymentMethod && (
+            <div className="flex justify-between">
+              <span className="text-gray-600">Způsob platby:</span>
+              <span className="font-semibold">{orderDetails.paymentMethod}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between">
+            <span className="text-gray-600">Produkt:</span>
+            <span className="font-semibold">{orderDetails?.product}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span className="text-gray-600">Cena:</span>
+            <span className="font-semibold text-green-600">{orderDetails?.price}</span>
           </div>
         </div>
       </div>
+
+      {/* Payment Instructions */}
+      {paymentInstructions && (
+        <div className="bg-orange-50 rounded-xl p-6 mb-8 border border-orange-200">
+          <h2 className="text-xl font-bold mb-4 text-orange-900 flex items-center">
+            <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            </svg>
+            Platební instrukce
+          </h2>
+
+          <div className="bg-white rounded-lg p-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Částka k úhradě</label>
+                <div className="text-lg font-bold text-green-600">{paymentInstructions.amount}</div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Splatnost</label>
+                <div className="text-lg font-semibold text-orange-600">{paymentInstructions.dueDate}</div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Číslo účtu</label>
+                <div className="text-lg font-mono font-semibold">{paymentInstructions.accountNumber}</div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Banka</label>
+                <div className="text-lg font-semibold">{paymentInstructions.bankName}</div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Variabilní symbol</label>
+                <div className="text-lg font-mono font-semibold text-blue-600">{paymentInstructions.variableSymbol}</div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Specifický symbol</label>
+                <div className="text-lg font-mono font-semibold">{paymentInstructions.specificSymbol}</div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Zpráva pro příjemce</label>
+              <div className="text-lg font-semibold">{paymentInstructions.message}</div>
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <svg className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <div>
+                <h4 className="font-semibold text-yellow-800 mb-1">Důležité upozornění</h4>
+                <p className="text-sm text-yellow-700">
+                  Prosím použijte přesně uvedené údaje pro platbu. Bez správného variabilního symbolu
+                  nebude možné platbu automaticky přiřadit k vaší objednávce.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Next Steps */}
       <div className="bg-blue-50 rounded-xl p-6 mb-8">

@@ -26,6 +26,13 @@ export default function Payment() {
     city: '',
     zip: ''
   });
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(true);
+
+  // Load payment methods on component mount
+  useEffect(() => {
+    loadPaymentMethods();
+  }, []);
 
   // Redirect if cart is empty (disabled for testing)
   useEffect(() => {
@@ -34,6 +41,87 @@ export default function Payment() {
     //   router.push('/vps');
     // }
   }, [items, router]);
+
+  /**
+   * Load available payment methods from API
+   */
+  const loadPaymentMethods = async () => {
+    try {
+      setLoadingPaymentMethods(true);
+      console.log('🔍 Loading payment methods...');
+
+      const response = await fetch('/api/payments/methods');
+      const data = await response.json();
+
+      if (data.success) {
+        // Show only enabled payment methods from HostBill
+        const availableMethods = (data.methods || []).filter(method => method.enabled);
+        setPaymentMethods(availableMethods);
+
+        console.log(`✅ Loaded ${availableMethods.length} active payment methods:`,
+          availableMethods.map(m => `${m.id}: ${m.name}`));
+
+        // Auto-select first available method
+        if (availableMethods.length > 0) {
+          setSelectedPayment(availableMethods[0].id);
+        }
+
+        console.log('✅ Payment methods loaded:', availableMethods);
+      } else {
+        throw new Error(data.error || 'Failed to load payment methods');
+      }
+    } catch (error) {
+      console.error('❌ Error loading payment methods:', error);
+      // Fallback to static methods
+      setPaymentMethods(getStaticPaymentMethods());
+      setSelectedPayment('card');
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
+  };
+
+  /**
+   * Get static payment methods as fallback
+   */
+  const getStaticPaymentMethods = () => {
+    return [
+      {
+        id: 'card',
+        name: 'Platební karta',
+        icon: '💳',
+        description: 'Visa, Mastercard, American Express',
+        processingTime: 'Okamžitě'
+      },
+      {
+        id: 'banktransfer',
+        name: 'Bankovní převod',
+        icon: '🏦',
+        description: 'Převod z bankovního účtu',
+        processingTime: '1-2 pracovní dny'
+      },
+      {
+        id: 'paypal',
+        name: 'PayPal',
+        icon: '🅿️',
+        description: 'Rychlá a bezpečná platba',
+        processingTime: 'Okamžitě'
+      },
+      {
+        id: 'crypto',
+        name: 'Kryptoměny',
+        icon: '₿',
+        description: 'Bitcoin, Ethereum a další',
+        processingTime: '10-30 minut'
+      },
+      {
+        id: 'payu',
+        name: 'PayU',
+        icon: '💰',
+        description: 'Rychlá a bezpečná platba přes PayU',
+        processingTime: 'Okamžitě'
+      }
+    ];
+  };
 
   // Mock data for testing when cart is empty
   const testItems = items.length === 0 ? [
@@ -214,36 +302,7 @@ export default function Payment() {
     { id: 'curl', name: 'cURL', icon: '🌐', category: 'Network', description: 'HTTP klient' }
   ];
 
-  const paymentMethods = [
-    {
-      id: 'card',
-      name: 'Platební karta',
-      icon: '💳',
-      description: 'Visa, Mastercard, American Express',
-      processing: 'Okamžitě'
-    },
-    {
-      id: 'bank',
-      name: 'Bankovní převod',
-      icon: '🏦',
-      description: 'Převod z bankovního účtu',
-      processing: '1-2 pracovní dny'
-    },
-    {
-      id: 'paypal',
-      name: 'PayPal',
-      icon: '🅿️',
-      description: 'Rychlá a bezpečná platba',
-      processing: 'Okamžitě'
-    },
-    {
-      id: 'crypto',
-      name: 'Kryptoměny',
-      icon: '₿',
-      description: 'Bitcoin, Ethereum a další',
-      processing: '10-30 minut'
-    }
-  ];
+
 
   const calculatePrice = (basePrice, period, discount) => {
     const numericPrice = parseFloat(basePrice.replace(/[^\d]/g, ''));
@@ -360,83 +419,126 @@ export default function Payment() {
     setIsProcessing(true);
 
     try {
-      // Generate Ansible configuration for server setup
-      const ansibleConfig = {
-        orderId: `ORDER-${Date.now()}`,
-        serverConfig: {
-          hostname: `vps-${Date.now()}`,
-          operatingSystem: selectedOS,
-          applications: selectedApps,
-          customerData: customerData,
-          serverSpecs: testItems[0] || {}
+      console.log('🚀 Starting order creation process...');
+
+      // Generate order ID
+      const orderId = `ORDER-${Date.now()}`;
+      const { total } = getTotalForPeriod();
+
+      // Prepare order data for middleware
+      const orderData = {
+        customer: {
+          firstName: customerData.firstName,
+          lastName: customerData.lastName,
+          email: customerData.email,
+          phone: customerData.phone,
+          company: customerData.company,
+          address: customerData.address,
+          city: customerData.city,
+          zip: customerData.zip,
+          country: customerData.country
+        },
+        items: testItems.map(item => ({
+          productId: '1', // VPS Basic for testing
+          productName: item.name,
+          price: 1, // 1 CZK for testing
+          configOptions: {
+            os: selectedOS,
+            period: selectedPeriod,
+            applications: selectedApps
+          }
+        })),
+        payment: {
+          method: selectedPayment,
+          amount: 1, // 1 CZK for testing
+          currency: 'CZK'
+        },
+        metadata: {
+          source: 'cloudvps_payment_page',
+          promoCode: appliedPromo?.code || null,
+          promoDiscount: appliedPromo?.discount || 0
         }
       };
 
-      console.log('🚀 Generating Ansible setup for order:', ansibleConfig.orderId);
-      console.log('📋 Configuration:', {
-        hostname: ansibleConfig.serverConfig.hostname,
-        os: ansibleConfig.serverConfig.operatingSystem,
-        apps: ansibleConfig.serverConfig.applications,
-        customer: ansibleConfig.serverConfig.customerData.email
-      });
+      console.log('📤 Creating order via middleware...', orderData);
 
-      // Send to backend for Ansible playbook generation
-      const response = await fetch('/api/ansible/generate-setup', {
+      // Create order via middleware
+      const orderResponse = await fetch('/api/middleware/create-test-order', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(ansibleConfig)
+        body: JSON.stringify(orderData)
       });
 
-      console.log('📡 API Response status:', response.status);
+      const orderResult = await orderResponse.json();
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ Ansible setup prepared successfully!');
-        console.log('📄 Generated files:', result.files);
-        console.log('🔧 Available commands:', result.commands);
-        console.log('📋 Next steps:', result.nextSteps);
+      if (orderResult.success) {
+        console.log('✅ Order created successfully:', orderResult);
 
-        // Show success notification
-        if (typeof window !== 'undefined') {
-          window.ansibleResult = result; // Store for inspection
+        const invoiceId = orderResult.orders?.[0]?.orderId || orderResult.clientId;
+
+        // Initialize payment
+        console.log('💳 Initializing payment...');
+
+        const paymentResponse = await fetch('/api/payments/initialize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId: orderId,
+            invoiceId: invoiceId,
+            method: selectedPayment,
+            amount: 1, // 1 CZK for testing
+            currency: 'CZK',
+            customerData: customerData
+          })
+        });
+
+        const paymentResult = await paymentResponse.json();
+
+        if (paymentResult.success) {
+          console.log('✅ Payment initialized:', paymentResult);
+
+          // Track affiliate conversion
+          if (typeof window !== 'undefined' && window.hostbillAffiliate) {
+            const selectedOSData = operatingSystems.find(os => os.id === selectedOS);
+            const selectedAppsData = selectedApps.map(appId =>
+              applications.find(a => a.id === appId)?.name
+            ).filter(Boolean);
+
+            window.hostbillAffiliate.trackConversion({
+              orderId: orderId,
+              amount: 1, // 1 CZK for testing
+              currency: 'CZK',
+              products: testItems.map(item => item.name),
+              os: selectedOSData?.name,
+              applications: selectedAppsData,
+              period: selectedPeriod
+            });
+          }
+
+          // Handle payment redirect or manual instructions
+          if (paymentResult.redirectRequired && paymentResult.paymentUrl) {
+            console.log('🔄 Redirecting to payment gateway:', paymentResult.paymentUrl);
+            window.location.href = paymentResult.paymentUrl;
+          } else {
+            // For manual payments, redirect to confirmation with instructions
+            clearCart();
+            router.push(`/order-confirmation?orderId=${orderId}&paymentId=${paymentResult.paymentId}&manual=true`);
+          }
+        } else {
+          throw new Error(paymentResult.error || 'Payment initialization failed');
         }
       } else {
-        const error = await response.json();
-        console.error('❌ Ansible setup failed:', error);
+        throw new Error(orderResult.error || 'Order creation failed');
       }
     } catch (error) {
-      console.error('💥 Failed to prepare Ansible setup:', error);
+      console.error('❌ Order/Payment process failed:', error);
+      alert(`Chyba při zpracování objednávky: ${error.message}`);
+      setIsProcessing(false);
     }
-
-    // Simulate payment processing delay
-    setTimeout(() => {
-      // Generate order ID
-      const orderId = `ORDER-${Date.now()}`;
-
-      // Track affiliate conversion
-      if (typeof window !== 'undefined' && window.hostbillAffiliate) {
-        const totalPrice = getTotalForPeriod().total;
-        const selectedOSData = operatingSystems.find(os => os.id === selectedOS);
-        const selectedAppsData = selectedApps.map(appId =>
-          applications.find(a => a.id === appId)?.name
-        ).filter(Boolean);
-
-        window.hostbillAffiliate.trackConversion({
-          orderId: orderId,
-          amount: totalPrice,
-          currency: 'CZK',
-          products: testItems.map(item => item.name),
-          os: selectedOSData.name,
-          applications: selectedAppsData,
-          period: selectedPeriod
-        });
-      }
-
-      clearCart();
-      router.push(`/order-confirmation?orderId=${orderId}`);
-    }, 3000);
   };
 
   // Temporarily disabled for testing
@@ -717,33 +819,59 @@ export default function Payment() {
               {/* Payment Method */}
               <div className="bg-white rounded-xl shadow-sm border p-4 lg:p-6">
                 <h2 className="text-lg lg:text-xl font-bold text-gray-900 mb-4">Způsob platby</h2>
-                <div className="space-y-3">
-                  {paymentMethods.map((method) => (
-                    <button
-                      key={method.id}
-                      onClick={() => setSelectedPayment(method.id)}
-                      className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
-                        selectedPayment === method.id
-                          ? 'border-primary-500 bg-primary-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3 flex-1 min-w-0">
-                          <span className="text-xl lg:text-2xl">{method.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-gray-900 text-sm lg:text-base">{method.name}</div>
-                            <div className="text-xs lg:text-sm text-gray-600 truncate">{method.description}</div>
+
+                {loadingPaymentMethods ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="w-full p-4 rounded-lg border-2 border-gray-200 animate-pulse">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                          <div className="flex-1">
+                            <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
+                            <div className="h-3 bg-gray-200 rounded w-2/3"></div>
                           </div>
                         </div>
-                        <div className="text-right ml-2">
-                          <div className="text-xs lg:text-sm text-gray-600">Zpracování</div>
-                          <div className="text-xs lg:text-sm font-medium text-gray-900">{method.processing}</div>
-                        </div>
                       </div>
-                    </button>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {paymentMethods.map((method) => (
+                      <button
+                        key={method.id}
+                        onClick={() => setSelectedPayment(method.id)}
+                        className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                          selectedPayment === method.id
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <span className="text-xl lg:text-2xl">{method.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-gray-900 text-sm lg:text-base">{method.name}</div>
+                              <div className="text-xs lg:text-sm text-gray-600 truncate">{method.description}</div>
+                            </div>
+                          </div>
+                          <div className="text-right ml-2">
+                            <div className="text-xs lg:text-sm text-gray-600">Zpracování</div>
+                            <div className="text-xs lg:text-sm font-medium text-gray-900">
+                              {method.processingTime || method.processing}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+
+                    {paymentMethods.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="text-4xl mb-2">💳</div>
+                        <div>Žádné platební metody nejsou k dispozici</div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

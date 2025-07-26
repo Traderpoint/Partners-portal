@@ -107,6 +107,15 @@ class ProductMapper {
   }
 
   /**
+   * Alias for mapToCloudVPS - for consistency with API naming
+   * @param {string|number} hostbillProductId - HostBill product ID
+   * @returns {string|null} Cloud VPS product ID or null if not found
+   */
+  getCloudVpsId(hostbillProductId) {
+    return this.mapToCloudVPS(hostbillProductId);
+  }
+
+  /**
    * Get all mappings
    * @returns {Object} All mappings
    */

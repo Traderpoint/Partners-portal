@@ -95,6 +95,18 @@ export default function TestPortal() {
               🔗 Middleware Testy
             </h2>
 
+            {/* Test Mode Info */}
+            <div style={{
+              backgroundColor: '#fff3cd',
+              border: '1px solid #ffeaa7',
+              borderRadius: '6px',
+              padding: '12px',
+              marginBottom: '15px',
+              fontSize: '14px'
+            }}>
+              <strong>🧪 Test Mode:</strong> Platby používají simulovanou bránu na localhost:3005/test-payment
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <Link href="/middleware-dashboard" style={{
                 display: 'block',
@@ -189,6 +201,46 @@ export default function TestPortal() {
               }}>
                 🚀 Advanced Order Test (Middleware)
               </Link>
+
+              <Link href="/payment-test" style={{
+                display: 'block',
+                padding: '12px 16px',
+                backgroundColor: '#e1f5fe',
+                border: '2px solid #0288d1',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                color: '#0277bd',
+                transition: 'all 0.2s',
+                fontWeight: 'bold'
+              }}>
+                💳 Payment System Test (Middleware)
+              </Link>
+
+              <Link href="/test-payment-gateway" style={{
+                display: 'block',
+                padding: '12px 16px',
+                backgroundColor: '#f3e5f5',
+                border: '1px solid #9c27b0',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                color: '#7b1fa2',
+                transition: 'all 0.2s'
+              }}>
+                🧪 Test Payment Gateway
+              </Link>
+
+              <Link href="/payment-methods-test" style={{
+                display: 'block',
+                padding: '12px 16px',
+                backgroundColor: '#e8f5e8',
+                border: '1px solid #4caf50',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                color: '#2e7d32',
+                transition: 'all 0.2s'
+              }}>
+                🔍 Payment Methods Test
+              </Link>
             </div>
           </div>
 
@@ -280,6 +332,89 @@ export default function TestPortal() {
                 transition: 'all 0.2s'
               }}>
                 🎭 Affiliate Scénáře
+              </Link>
+
+              <Link href="/payment-test?mode=direct" style={{
+                display: 'block',
+                padding: '12px 16px',
+                backgroundColor: '#fff3e0',
+                border: '2px solid #ff9800',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                color: '#f57c00',
+                transition: 'all 0.2s',
+                fontWeight: 'bold'
+              }}>
+                💳 Payment System Test (Direct)
+              </Link>
+
+              <Link href="/direct-payment-test" style={{
+                display: 'block',
+                padding: '12px 16px',
+                backgroundColor: '#fce4ec',
+                border: '1px solid #e91e63',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                color: '#c2185b',
+                transition: 'all 0.2s'
+              }}>
+                🎯 Direct HostBill Payment Test
+              </Link>
+
+              <Link href="/real-payment-methods-test" style={{
+                display: 'block',
+                padding: '12px 16px',
+                backgroundColor: '#e8f5e8',
+                border: '2px solid #4caf50',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                color: '#2e7d32',
+                transition: 'all 0.2s',
+                fontWeight: 'bold'
+              }}>
+                🔍 Real Payment Methods Test
+              </Link>
+
+              <Link href="/hostbill-modules-test" style={{
+                display: 'block',
+                padding: '12px 16px',
+                backgroundColor: '#f3e5f5',
+                border: '1px solid #9c27b0',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                color: '#7b1fa2',
+                transition: 'all 0.2s'
+              }}>
+                🏢 HostBill Payment Modules
+              </Link>
+
+              <Link href="/complete-order-test" style={{
+                display: 'block',
+                padding: '12px 16px',
+                backgroundColor: '#fff8e1',
+                border: '2px solid #ff9800',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                color: '#f57c00',
+                transition: 'all 0.2s',
+                fontWeight: 'bold'
+              }}>
+                🛒 Complete Order Workflow Test
+              </Link>
+
+              <Link href="/integration-test" style={{
+                display: 'block',
+                padding: '12px 16px',
+                backgroundColor: '#e8f5e8',
+                border: '3px solid #4caf50',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                color: '#2e7d32',
+                transition: 'all 0.2s',
+                fontWeight: 'bold',
+                fontSize: '16px'
+              }}>
+                🔗 CloudVPS ↔ Middleware Integration Test
               </Link>
             </div>
           </div>
