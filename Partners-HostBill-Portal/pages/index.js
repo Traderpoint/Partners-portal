@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import LoginForm from '../components/LoginForm';
 import FiltersAndExport from '../components/FiltersAndExport';
 import Analytics from '../components/Analytics';
+import DashboardTiles from '../components/DashboardTiles';
 
 export default function PartnersPortal() {
+  const router = useRouter();
+
   // Authentication state
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -19,12 +23,19 @@ export default function PartnersPortal() {
 
   // Filters and view state
   const [filters, setFilters] = useState({});
-  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [currentView, setCurrentView] = useState('dashboard'); // dashboard, orders, analytics
 
   // Check authentication on mount
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Reset view to dashboard when returning to home page
+  useEffect(() => {
+    if (router.pathname === '/') {
+      setCurrentView('dashboard');
+    }
+  }, [router.pathname]);
 
   const checkAuth = async () => {
     try {
@@ -265,6 +276,16 @@ export default function PartnersPortal() {
     console.log(`Exported ${filteredOrders.length} orders as ${format}`);
   };
 
+  // Handle view changes
+  const handleViewChange = (view) => {
+    setCurrentView(view);
+  };
+
+  // Handle dashboard click from navigation
+  const handleDashboardClick = () => {
+    setCurrentView('dashboard');
+  };
+
   // Show loading screen during auth check
   if (authLoading) {
     return (
@@ -282,8 +303,8 @@ export default function PartnersPortal() {
     return (
       <>
         <Head>
-          <title>Login - Partners HostBill Portal</title>
-          <meta name="description" content="Partners HostBill Portal - Login" />
+          <title>Login - Systrix Partners Portal</title>
+          <meta name="description" content="Systrix Partners Portal - Login" />
         </Head>
         <LoginForm
           onLogin={handleLogin}
@@ -297,11 +318,11 @@ export default function PartnersPortal() {
   return (
     <>
       <Head>
-        <title>Dashboard - Partners HostBill Portal</title>
-        <meta name="description" content="Partners HostBill Portal - Dashboard" />
+        <title>Dashboard - Systrix Partners Portal</title>
+        <meta name="description" content="Systrix Partners Portal - Dashboard" />
       </Head>
 
-      <Layout user={user} onLogout={handleLogout}>
+      <Layout user={user} onLogout={handleLogout} onDashboardClick={handleDashboardClick}>
         <div className="space-y-6">
           {/* Header */}
           <div className="md:flex md:items-center md:justify-between">
@@ -351,23 +372,32 @@ export default function PartnersPortal() {
             </div>
           )}
 
-          {/* View Toggle */}
+          {/* View Navigation */}
           <div className="flex justify-end mb-4">
             <div className="inline-flex rounded-md shadow-sm" role="group">
               <button
                 type="button"
-                onClick={() => setShowAnalytics(false)}
+                onClick={() => setCurrentView('dashboard')}
                 className={`px-4 py-2 text-sm font-medium border border-gray-200 rounded-l-lg hover:bg-gray-50 focus:z-10 focus:ring-2 focus:ring-primary-500 focus:bg-primary-50 ${
-                  !showAnalytics ? 'bg-primary-50 text-primary-700 border-primary-200' : 'bg-white text-gray-900'
+                  currentView === 'dashboard' ? 'bg-primary-50 text-primary-700 border-primary-200' : 'bg-white text-gray-900'
+                }`}
+              >
+                🏠 Dashboard
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentView('orders')}
+                className={`px-4 py-2 text-sm font-medium border border-gray-200 hover:bg-gray-50 focus:z-10 focus:ring-2 focus:ring-primary-500 focus:bg-primary-50 ${
+                  currentView === 'orders' ? 'bg-primary-50 text-primary-700 border-primary-200' : 'bg-white text-gray-900'
                 }`}
               >
                 📋 Orders
               </button>
               <button
                 type="button"
-                onClick={() => setShowAnalytics(true)}
+                onClick={() => setCurrentView('analytics')}
                 className={`px-4 py-2 text-sm font-medium border border-gray-200 rounded-r-lg hover:bg-gray-50 focus:z-10 focus:ring-2 focus:ring-primary-500 focus:bg-primary-50 ${
-                  showAnalytics ? 'bg-primary-50 text-primary-700 border-primary-200' : 'bg-white text-gray-900'
+                  currentView === 'analytics' ? 'bg-primary-50 text-primary-700 border-primary-200' : 'bg-white text-gray-900'
                 }`}
               >
                 📊 Analytics
@@ -375,18 +405,25 @@ export default function PartnersPortal() {
             </div>
           </div>
 
-          {/* Filters and Export */}
-          <FiltersAndExport
-            orders={filteredOrders}
-            onFilterChange={handleFilterChange}
-            onExport={handleExport}
-          />
+          {/* Conditional Content Based on Current View */}
+          {currentView === 'dashboard' && (
+            <DashboardTiles
+              orders={filteredOrders}
+              onViewChange={handleViewChange}
+              onRefresh={() => loadAllData()}
+              onExport={handleExport}
+              loading={loading}
+            />
+          )}
 
-          {showAnalytics ? (
-            /* Analytics View */
-            <Analytics orders={filteredOrders} />
-          ) : (
+          {currentView === 'orders' && (
             <>
+              {/* Filters and Export */}
+              <FiltersAndExport
+                orders={filteredOrders}
+                onFilterChange={handleFilterChange}
+                onExport={handleExport}
+              />
               {/* Summary Cards */}
               {filteredTotals.orders.length > 0 && (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -518,6 +555,12 @@ export default function PartnersPortal() {
                 </div>
               </div>
             </div>
+              )}
+            </>
+          )}
+
+          {currentView === 'analytics' && (
+            <Analytics orders={filteredOrders} />
           )}
 
           {/* Debug Data */}
@@ -551,8 +594,6 @@ export default function PartnersPortal() {
                 )}
               </div>
             </div>
-          )}
-            </>
           )}
         </div>
       </Layout>

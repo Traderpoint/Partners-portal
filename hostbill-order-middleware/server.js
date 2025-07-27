@@ -1423,6 +1423,33 @@ function getPaymentName(method) {
   return names[method] || 'Platební karta';
 }
 
+// Root endpoint - API information
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    name: 'HostBill Order Processing Middleware',
+    version: '1.0.0',
+    description: 'Secure middleware for processing orders between Cloud VPS and HostBill API',
+    port: PORT,
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/health',
+      testConnection: '/api/test-connection',
+      products: '/api/products',
+      orders: '/api/orders',
+      payments: '/api/payments',
+      stats: '/api/stats'
+    },
+    documentation: {
+      healthCheck: `GET ${req.protocol}://${req.get('host')}/health`,
+      testConnection: `GET ${req.protocol}://${req.get('host')}/api/test-connection`,
+      paymentMethods: `GET ${req.protocol}://${req.get('host')}/api/payments/methods`
+    },
+    status: 'operational',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // 404 handler - must be last
 app.use((req, res) => {
   res.status(404).json({
