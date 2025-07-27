@@ -93,6 +93,28 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/hostbill/products?affiliate_id
 3. **Domain konfigurace** pro cookie storage
 4. **Monitoring setup** pro affiliate performance
 
+## 🏢 Related Repositories
+
+### 🎯 Systrix Partners Portal
+**Repository:** [Traderpoint/Systrix-Partners-portal](https://github.com/Traderpoint/Systrix-Partners-portal)
+
+Kompletní affiliate partners portal s:
+- 🏠 **Dashboard** - Dlaždicová tlačítka a metriky
+- 📋 **Orders Management** - Správa objednávek s filtry
+- 💰 **Commission Tracking** - Sledování komisí
+- 👤 **Profile Management** - Správa affiliate účtu
+- 📊 **Advanced Analytics** - Interaktivní grafy a reporty
+
+### 🔧 HostBill Order Middleware
+**Repository:** [Traderpoint/Hostbill-Order-Middleware](https://github.com/Traderpoint/Hostbill-Order-Middleware)
+
+Middleware pro zpracování objednávek mezi frontend a HostBill.
+
+### 👥 Affiliate Portal (Legacy)
+**Repository:** [Traderpoint/Affiliate-portal](https://github.com/Traderpoint/Affiliate-portal)
+
+Starší verze affiliate portálu (nahrazena Systrix Partners Portal).
+
 ## 🔧 Struktura projektu
 
 ```
@@ -103,6 +125,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/hostbill/products?affiliate_id
 ├── components/                # React komponenty
 ├── lib/                      # Utility funkce
 ├── styles/                   # CSS styly
+├── Systrix-Partners-Portal/  # Nový partners portal
 └── public/                   # Statické soubory
 ```
 
