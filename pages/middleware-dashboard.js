@@ -363,6 +363,24 @@ export default function MiddlewareDashboard() {
           >
             🚀 Advanced Order Test
           </a>
+
+          <a
+            href="http://localhost:3010"
+            target="_blank"
+            style={{
+              display: 'block',
+              padding: '15px',
+              backgroundColor: '#f1f8e9',
+              border: '1px solid #8bc34a',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              color: '#689f38',
+              textAlign: 'center',
+              transition: 'all 0.2s'
+            }}
+          >
+            🎛️ Advanced Dashboard (Port 3010)
+          </a>
         </div>
       </div>
 
