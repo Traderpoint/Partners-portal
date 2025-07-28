@@ -62,3 +62,7 @@ pids
 # Temporary folders
 tmp/
 temp/
+
+# Removed directories
+affiliate-portal/
+hostbill-order-middleware/

@@ -225,415 +225,1338 @@ function generateCloudVpsDashboard(data) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Middleware Dashboard</title>
     <style>
-        body {
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            background-color: #f8f9fa;
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        .header {
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #111827;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            opacity: 0.1;
+            z-index: -1;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Modern Sidebar with Glassmorphism */
+        .sidebar {
+            width: 18rem;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.18);
+            flex-shrink: 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .sidebar-header {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 2rem 1.5rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+            min-height: 5rem;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+        }
+
+        .sidebar-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.8rem;
+            color: #4b5563;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        .sidebar-nav {
+            padding: 1.5rem 1rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.5rem;
+            border-radius: 1rem;
+            color: #374151;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .nav-item:hover::before {
+            opacity: 1;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #111827;
+            transform: translateX(8px);
+            box-shadow: 0 4px 15px 0 rgba(31, 38, 135, 0.2);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 8px 25px 0 rgba(102, 126, 234, 0.4);
+        }
+
+        .nav-item.active::before {
+            opacity: 0;
+        }
+
+        .nav-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            margin-right: 1rem;
+            flex-shrink: 0;
+            font-size: 1.25rem;
+        }
+
+        /* Modern Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 18rem;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .content-header {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 2rem 2.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 4px 15px 0 rgba(31, 38, 135, 0.1);
+        }
+
+        .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 2rem;
         }
 
-        .header h1 {
-            margin: 0 0 5px 0;
-            color: #333;
+        .header-title {
+            flex: 1;
+            min-width: 0;
         }
 
-        .header p {
-            margin: 0;
-            color: #666;
+        .header-title h1 {
+            font-size: 2.5rem !important;
+            font-weight: 800 !important;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem !important;
+            text-shadow: none !important;
         }
 
-        .refresh-section {
-            text-align: right;
+        .header-title p {
+            font-size: 1rem !important;
+            color: #6b7280 !important;
+            font-weight: 500 !important;
         }
 
-        .refresh-btn {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        /* Modern Buttons */
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
             border: none;
-            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 1rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
             cursor: pointer;
-            margin-bottom: 10px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 15px 0 rgba(102, 126, 234, 0.4);
+            position: relative;
+            overflow: hidden;
         }
 
-        .refresh-btn:hover {
-            background-color: #0056b3;
-        }
-
-        .last-update {
-            font-size: 12px;
-            color: #666;
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .status-card {
-            background-color: white;
-            border-radius: 8px;
-            padding: 20px;
-            border: 2px solid;
-        }
-
-        .status-card h3 {
-            margin: 0 0 15px 0;
-        }
-
-        .status-value {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .status-details {
-            font-size: 14px;
-            color: #666;
-        }
-
-        .status-details div {
-            margin-bottom: 2px;
-        }
-
-        .server-status {
-            border-color: ${getStatusColor()};
-        }
-
-        .server-status h3 {
-            color: ${getStatusColor()};
-        }
-
-        .server-status .status-value {
-            color: ${getStatusColor()};
-        }
-
-        .mapping-card {
-            border-color: #9c27b0;
-        }
-
-        .mapping-card h3 {
-            color: #9c27b0;
-        }
-
-        .mapping-card .status-value {
-            color: #9c27b0;
-        }
-
-        .config-card {
-            border-color: #ff9800;
-        }
-
-        .config-card h3 {
-            color: #ff9800;
-        }
-
-        .config-card .status-value {
-            color: #ff9800;
-        }
-
-        .api-card {
-            border-color: #4caf50;
-        }
-
-        .api-card h3 {
-            color: #4caf50;
-        }
-
-        .api-card .status-value {
-            color: #4caf50;
-        }
-
-        .details-section {
-            background-color: white;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .details-section h3 {
-            margin: 0 0 20px 0;
-            color: #495057;
-        }
-
-        .mapping-table {
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
             width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-            overflow-x: auto;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
         }
 
-        .mapping-table th,
-        .mapping-table td {
-            padding: 12px;
-            text-align: left;
-            border: 1px solid #dee2e6;
+        .btn-primary:hover::before {
+            left: 100%;
         }
 
-        .mapping-table th {
-            background-color: #f8f9fa;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px 0 rgba(102, 126, 234, 0.6);
         }
 
-        .mapping-table .cloud-id {
-            font-weight: bold;
-            color: #007bff;
+        .btn-primary:active {
+            transform: translateY(0);
         }
 
-        .mapping-table .hostbill-id {
-            font-weight: bold;
-            color: #28a745;
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .status-badge {
-            padding: 4px 8px;
-            background-color: #d4edda;
-            color: #155724;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-online {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(21, 128, 61, 0.2));
+            color: #15803d;
+            box-shadow: 0 4px 15px 0 rgba(34, 197, 94, 0.3);
+        }
+
+        .status-offline {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.2));
+            color: #b91c1c;
+            box-shadow: 0 4px 15px 0 rgba(239, 68, 68, 0.3);
+        }
+
+        .last-update {
+            font-size: 0.85rem;
+            color: #6b7280;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        /* Compact Content Area */
+        .content-area {
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Compact Quick Actions Section */
+        .quick-actions {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px);
+            padding: 1.25rem;
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quick-actions::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+        }
+
+        .quick-actions h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            text-align: center;
         }
 
         .actions-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            gap: 1rem;
+        }
+
+        .action-tile {
+            position: relative;
+            padding: 1.25rem 1rem;
+            border-radius: 1rem;
+            color: white;
+            text-decoration: none;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(0);
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+        }
+
+        .action-tile::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.6s;
+        }
+
+        .action-tile:hover::before {
+            left: 100%;
+        }
+
+        .action-tile:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .action-tile-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 0.75rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .action-icon {
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 0.75rem;
+            font-size: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .action-tile:hover .action-icon {
+            transform: scale(1.1) rotate(5deg);
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .action-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .action-description {
+            font-size: 0.75rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        /* Modern Action Colors with Gradients */
+        .action-orders {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 8px 32px 0 rgba(102, 126, 234, 0.4);
+        }
+
+        .action-analytics {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 8px 32px 0 rgba(240, 147, 251, 0.4);
+        }
+
+        .action-refresh {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            box-shadow: 0 8px 32px 0 rgba(79, 172, 254, 0.4);
+        }
+
+        .action-export {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            box-shadow: 0 8px 32px 0 rgba(67, 233, 123, 0.4);
+        }
+
+        /* Compact Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px -12px rgba(31, 38, 135, 0.5);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .card-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            flex: 1;
+            color: #374151;
+            opacity: 0.8;
+        }
+
+        .card-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: white;
+            box-shadow: 0 8px 25px 0 rgba(0, 0, 0, 0.15);
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-icon::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
+            border-radius: inherit;
+        }
+
+        .card-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.75rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Background decoration */
+        .card::after {
+            content: '';
+            position: absolute;
+            top: -2rem;
+            right: -2rem;
+            width: 6rem;
+            height: 6rem;
+            opacity: 0.1;
+            font-size: 4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .card-change {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .card-change.positive {
+            color: #059669;
+        }
+
+        .card-change.negative {
+            color: #dc2626;
+        }
+
+        .card-details {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            font-weight: 400;
+        }
+
+        .detail-value {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Card variants - Partners Portal Style with exact Tailwind colors */
+        .server-card {
+            background-color: ${status.online ? '#f0fdf4' : '#fef2f2'};
+        }
+
+        .server-card .card-title {
+            color: ${status.online ? '#15803d' : '#b91c1c'};
+        }
+
+        .server-card .detail-label,
+        .server-card .detail-value {
+            color: ${status.online ? '#15803d' : '#b91c1c'};
+        }
+
+        .server-card .card-icon {
+            background-color: ${status.online ? '#22c55e' : '#ef4444'};
+        }
+
+        .server-card::after {
+            content: '🖥️';
+            color: ${status.online ? '#22c55e' : '#ef4444'};
+        }
+
+        .mapping-card {
+            background-color: #faf5ff;
+        }
+
+        .mapping-card .card-title,
+        .mapping-card .detail-label,
+        .mapping-card .detail-value {
+            color: #7c3aed;
+        }
+
+        .mapping-card .card-icon {
+            background-color: #8b5cf6;
+        }
+
+        .mapping-card::after {
+            content: '🔗';
+            color: #8b5cf6;
+        }
+
+        .config-card {
+            background-color: #fffbeb;
+        }
+
+        .config-card .card-title,
+        .config-card .detail-label,
+        .config-card .detail-value {
+            color: #b45309;
+        }
+
+        .config-card .card-icon {
+            background-color: #f59e0b;
+        }
+
+        .config-card::after {
+            content: '⚙️';
+            color: #f59e0b;
+        }
+
+        .api-card {
+            background-color: #eff6ff;
+        }
+
+        .api-card .card-title,
+        .api-card .detail-label,
+        .api-card .detail-value {
+            color: #1d4ed8;
+        }
+
+        .api-card .card-icon {
+            background-color: #3b82f6;
+        }
+
+        .api-card::after {
+            content: '🔌';
+            color: #3b82f6;
+        }
+
+        /* Sections - Partners Portal Style */
+        .details-section {
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f3f4f6;
+            color: #6b7280;
+            font-size: 0.75rem;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        /* Tables - Partners Portal Style */
+        .mapping-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .mapping-table th {
+            background-color: #f9fafb;
+            color: #374151;
+            padding: 0.5rem 0.75rem;
+            font-weight: 600;
+            text-align: left;
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .mapping-table td {
+            padding: 0.5rem 0.75rem;
+            background: white;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.75rem;
+            color: #111827;
+        }
+
+        .mapping-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mapping-table tr:hover td {
+            background-color: #f9fafb;
+        }
+
+        /* Badges - Partners Portal Style */
+        .cloud-id, .hostbill-id {
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+        }
+
+        .cloud-id {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .hostbill-id {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .table-status-badge {
+            padding: 0.25rem 0.5rem;
+            background-color: #dcfce7;
+            color: #166534;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        /* Actions Grid - Partners Portal Style */
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
         }
 
         .action-link {
-            display: block;
-            padding: 15px;
-            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
             text-decoration: none;
-            text-align: center;
             transition: all 0.2s;
-            border: 1px solid;
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
         }
 
-        .action-order {
-            background-color: #e8f5e8;
-            border-color: #4caf50;
-            color: #2e7d32;
+        .action-link:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-color: #d1d5db;
         }
 
-        .action-mapping {
-            background-color: #f3e5f5;
-            border-color: #9c27b0;
-            color: #7b1fa2;
+        .action-icon {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
         }
 
-        .action-affiliate {
-            background-color: #fff3e0;
-            border-color: #ff9800;
-            color: #f57c00;
+        .action-content {
+            flex: 1;
+            min-width: 0;
         }
 
-        .action-advanced {
-            background-color: #e3f2fd;
-            border-color: #2196f3;
-            color: #1976d2;
+        .action-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 0.125rem;
         }
 
-        .action-dashboard {
-            background-color: #f1f8e9;
-            border-color: #8bc34a;
-            color: #689f38;
+        .action-description {
+            font-size: 0.625rem;
+            color: #6b7280;
         }
 
+        /* Action Icon Colors - Partners Portal Style */
+        .action-order .action-icon {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .action-mapping .action-icon {
+            background-color: #ede9fe;
+            color: #7c3aed;
+        }
+
+        .action-affiliate .action-icon {
+            background-color: #fef3c7;
+            color: #d97706;
+        }
+
+        .action-advanced .action-icon {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .action-dashboard .action-icon {
+            background-color: #cffafe;
+            color: #0891b2;
+        }
+
+        /* Footer - Partners Portal Style */
         .footer-info {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
-            font-size: 14px;
-            color: #666;
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
         }
 
-        .footer-info h4 {
-            margin: 0 0 10px 0;
-            color: #495057;
+        .footer-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .footer-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
         }
+
+        .footer-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.375rem 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .footer-item:last-child {
+            border-bottom: none;
+        }
+
+        .footer-label {
+            font-weight: 500;
+            color: #6b7280;
+            font-size: 0.75rem;
+        }
+
+        .footer-value {
+            color: #111827;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        /* Responsive Design - Partners Portal Style */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .content-area {
+                padding: 1rem;
+            }
+
+            .content-header {
+                padding: 1rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .actions-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .mapping-table {
+                font-size: 0.75rem;
+            }
+
+            .mapping-table th,
+            .mapping-table td {
+                padding: 0.5rem;
+            }
+        }
+
+        /* Modern Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .card {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+        .card:nth-child(4) { animation-delay: 0.4s; }
+
+        .action-tile {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .action-tile:nth-child(1) { animation-delay: 0.2s; }
+        .action-tile:nth-child(2) { animation-delay: 0.3s; }
+        .action-tile:nth-child(3) { animation-delay: 0.4s; }
+        .action-tile:nth-child(4) { animation-delay: 0.5s; }
+
+        .nav-item {
+            animation: slideInLeft 0.6s ease-out;
+        }
+
+        .nav-item:nth-child(1) { animation-delay: 0.1s; }
+        .nav-item:nth-child(2) { animation-delay: 0.2s; }
+        .nav-item:nth-child(3) { animation-delay: 0.3s; }
+        .nav-item:nth-child(4) { animation-delay: 0.4s; }
+        .nav-item:nth-child(5) { animation-delay: 0.5s; }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div>
-            <h1>🎛️ Middleware Dashboard</h1>
-            <p>Monitoring a správa HostBill Order Middleware</p>
+    <div class="layout">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">🎛️ Systrix Middleware Dashboard</div>
+                <div class="sidebar-subtitle">Monitoring a správa HostBill Order Middleware</div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item active">
+                    <span class="nav-icon">📊</span>
+                    Dashboard
+                </a>
+                <a href="/test" class="nav-item">
+                    <span class="nav-icon">🧪</span>
+                    API Tests
+                </a>
+                <a href="/tech-dashboard" class="nav-item">
+                    <span class="nav-icon">🔧</span>
+                    Tech Dashboard
+                </a>
+                <a href="http://localhost:3000/test-portal" class="nav-item" target="_blank">
+                    <span class="nav-icon">🎯</span>
+                    Test Portal
+                </a>
+                <a href="http://localhost:3006/" class="nav-item" target="_blank">
+                    <span class="nav-icon">👥</span>
+                    Partners Portal
+                </a>
+            </nav>
         </div>
 
-        <div class="refresh-section">
-            <button class="refresh-btn" onclick="location.reload()">
-                🔄 Refresh
-            </button>
-            <div class="last-update">
-                Last update: ${lastUpdate.toLocaleTimeString()}
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="content-header">
+                <div class="header-content">
+                    <div class="header-title">
+                        <h1 style="font-size: 1.875rem; font-weight: 700; color: #111827; margin-bottom: 0.25rem;">Welcome back, Admin!</h1>
+                        <p style="color: #6b7280; font-size: 0.875rem;">Middleware Dashboard - Status: <span class="status-badge ${status.online ? 'status-online' : 'status-offline'}">${getStatusText()}</span></p>
+                    </div>
+                    <div class="header-actions">
+                        <div class="last-update">
+                            Last update: ${lastUpdate.toLocaleTimeString()}
+                        </div>
+                        <button class="btn-primary" onclick="location.reload()">
+                            🔄 Refresh Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <h3>🚀 Quick Actions</h3>
+                    <div class="actions-grid">
+                        <button class="action-tile action-orders" onclick="window.open('/api/products', '_blank')">
+                            <div class="action-tile-content">
+                                <div class="action-icon">📦</div>
+                                <div class="action-title">View Products</div>
+                                <div class="action-description">Browse all products</div>
+                            </div>
+                        </button>
+
+                        <button class="action-tile action-analytics" onclick="window.open('/api/affiliates', '_blank')">
+                            <div class="action-tile-content">
+                                <div class="action-icon">👥</div>
+                                <div class="action-title">Affiliates</div>
+                                <div class="action-description">View affiliate data</div>
+                            </div>
+                        </button>
+
+                        <button class="action-tile action-refresh" onclick="location.reload()">
+                            <div class="action-tile-content">
+                                <div class="action-icon">🔄</div>
+                                <div class="action-title">Refresh Data</div>
+                                <div class="action-description">Update all data</div>
+                            </div>
+                        </button>
+
+                        <button class="action-tile action-export" onclick="window.open('/test', '_blank')">
+                            <div class="action-tile-content">
+                                <div class="action-icon">🧪</div>
+                                <div class="action-title">API Test Portal</div>
+                                <div class="action-description">Test middleware APIs</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Key Performance Metrics -->
+                <div class="quick-actions">
+                    <h3>📊 Key Performance Metrics</h3>
+                    <div class="dashboard-grid">
+                    <!-- Server Status -->
+                    <div class="card server-card">
+                        <div class="card-header">
+                            <div class="card-title">Server Status</div>
+                            <div class="card-icon">🖥️</div>
+                        </div>
+                        <div class="card-value">${getStatusText()}</div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Port</span>
+                                <span class="detail-value">${status.port}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Version</span>
+                                <span class="detail-value">${status.version}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Uptime</span>
+                                <span class="detail-value">${formatUptime(uptime)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Mapping -->
+                    <div class="card mapping-card">
+                        <div class="card-header">
+                            <div class="card-title">Product Mapping</div>
+                            <div class="card-icon">🔗</div>
+                        </div>
+                        <div class="card-value">${mapping.totalMappings}</div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Cloud VPS Products</span>
+                                <span class="detail-value">${mapping.cloudVpsProducts?.length || 0}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">HostBill Products</span>
+                                <span class="detail-value">${mapping.hostbillProducts?.length || 0}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Status</span>
+                                <span class="detail-value">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuration -->
+                    <div class="card config-card">
+                        <div class="card-header">
+                            <div class="card-title">Configuration</div>
+                            <div class="card-icon">⚙️</div>
+                        </div>
+                        <div class="card-value">Development</div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Environment</span>
+                                <span class="detail-value">development</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Port</span>
+                                <span class="detail-value">${status.port}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">URL</span>
+                                <span class="detail-value">${middlewareUrl}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Health -->
+                    <div class="card api-card">
+                        <div class="card-header">
+                            <div class="card-title">API Health</div>
+                            <div class="card-icon">🔌</div>
+                        </div>
+                        <div class="card-value">${status.online ? 'Healthy' : 'Unhealthy'}</div>
+                        <div class="card-details">
+                            <div class="detail-item">
+                                <span class="detail-label">HostBill API</span>
+                                <span class="detail-value">${hostbillConnected ? 'Connected' : 'Disconnected'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Order Processing</span>
+                                <span class="detail-value">${status.online ? 'Available' : 'Unavailable'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Product Sync</span>
+                                <span class="detail-value">${mapping.totalMappings > 0 ? 'Active' : 'Inactive'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+
+        <!-- Product Mapping Details -->
+        ${Object.keys(mapping.mappings || {}).length > 0 ? `
+        <div class="details-section">
+            <div class="section-header">
+                <div class="section-icon">🔗</div>
+                <h3 class="section-title">Product Mapping Details</h3>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table class="mapping-table">
+                    <thead>
+                        <tr>
+                            <th>Cloud VPS ID</th>
+                            <th>Cloud VPS Name</th>
+                            <th>HostBill ID</th>
+                            <th>HostBill Name</th>
+                            <th style="text-align: center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Object.entries(mapping.mappings).map(([cloudVpsId, hostbillId]) => `
+                        <tr>
+                            <td><span class="cloud-id">${cloudVpsId}</span></td>
+                            <td>${getCloudVpsProductName(cloudVpsId)}</td>
+                            <td><span class="hostbill-id">${hostbillId}</span></td>
+                            <td>${getHostBillProductName(hostbillId)}</td>
+                            <td style="text-align: center;">
+                                <span class="table-status-badge">✅ Active</span>
+                            </td>
+                        </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
         </div>
-    </div>
+        ` : ''}
 
-    <!-- Status Overview -->
-    <div class="status-grid">
-        <!-- Server Status -->
-        <div class="status-card server-status">
-            <h3>🖥️ Server Status</h3>
-            <div class="status-value">${getStatusText()}</div>
-            <div class="status-details">
-                <div>Port: ${status.port}</div>
-                <div>Version: ${status.version}</div>
-                <div>Uptime: ${formatUptime(uptime)}</div>
+        <!-- Quick Actions -->
+        <div class="details-section">
+            <div class="section-header">
+                <div class="section-icon">⚡</div>
+                <h3 class="section-title">Quick Actions</h3>
+            </div>
+
+            <div class="actions-grid">
+                <a href="http://localhost:3000/middleware-order-test" target="_blank" class="action-link action-order">
+                    <div class="action-icon">🛒</div>
+                    <div class="action-content">
+                        <div class="action-title">Test Order Processing</div>
+                        <div class="action-description">Test complete order workflow</div>
+                    </div>
+                </a>
+
+                <a href="http://localhost:3000/product-mapping-test" target="_blank" class="action-link action-mapping">
+                    <div class="action-icon">🔗</div>
+                    <div class="action-content">
+                        <div class="action-title">Product Mapping</div>
+                        <div class="action-description">Check product mappings</div>
+                    </div>
+                </a>
+
+                <a href="http://localhost:3000/middleware-affiliate-products" target="_blank" class="action-link action-affiliate">
+                    <div class="action-icon">👥</div>
+                    <div class="action-content">
+                        <div class="action-title">Affiliate Products</div>
+                        <div class="action-description">View affiliate products</div>
+                    </div>
+                </a>
+
+                <a href="http://localhost:3000/advanced-order-test" target="_blank" class="action-link action-advanced">
+                    <div class="action-icon">🚀</div>
+                    <div class="action-content">
+                        <div class="action-title">Advanced Order Test</div>
+                        <div class="action-description">Advanced testing features</div>
+                    </div>
+                </a>
+
+                <a href="/test" target="_blank" class="action-link action-dashboard">
+                    <div class="action-icon">🧪</div>
+                    <div class="action-content">
+                        <div class="action-title">API Test Portal</div>
+                        <div class="action-description">Test middleware APIs</div>
+                    </div>
+                </a>
+
+                <a href="http://localhost:3000/test-portal" target="_blank" class="action-link action-affiliate">
+                    <div class="action-icon">🎯</div>
+                    <div class="action-content">
+                        <div class="action-title">Complete Test Portal</div>
+                        <div class="action-description">Full testing suite</div>
+                    </div>
+                </a>
+
+                <a href="http://localhost:3005/tech-dashboard" target="_blank" class="action-link action-dashboard">
+                    <div class="action-icon">🔧</div>
+                    <div class="action-content">
+                        <div class="action-title">Tech Dashboard</div>
+                        <div class="action-description">Technical middleware dashboard</div>
+                    </div>
+                </a>
             </div>
         </div>
 
-        <!-- Product Mapping -->
-        <div class="status-card mapping-card">
-            <h3>🔗 Product Mapping</h3>
-            <div class="status-value">${mapping.totalMappings} Products</div>
-            <div class="status-details">
-                <div>Cloud VPS: ${mapping.cloudVpsProducts?.length || 0}</div>
-                <div>HostBill: ${mapping.hostbillProducts?.length || 0}</div>
-                <div>Status: Active</div>
+        <!-- Footer Info -->
+        <div class="footer-info">
+            <h4 class="footer-title">ℹ️ System Information</h4>
+            <div class="footer-grid">
+                <div class="footer-item">
+                    <span class="footer-label">Middleware URL</span>
+                    <span class="footer-value">${middlewareUrl}</span>
+                </div>
+                <div class="footer-item">
+                    <span class="footer-label">Auto-refresh</span>
+                    <span class="footer-value">30 seconds</span>
+                </div>
+                <div class="footer-item">
+                    <span class="footer-label">Dashboard Version</span>
+                    <span class="footer-value">2.0.0</span>
+                </div>
+                <div class="footer-item">
+                    <span class="footer-label">Last Check</span>
+                    <span class="footer-value">${lastUpdate.toLocaleString()}</span>
+                </div>
+                <div class="footer-item">
+                    <span class="footer-label">Total Requests</span>
+                    <span class="footer-value">${dashboardStats.requests}</span>
+                </div>
+                <div class="footer-item">
+                    <span class="footer-label">Total Errors</span>
+                    <span class="footer-value">${dashboardStats.errors}</span>
+                </div>
             </div>
-        </div>
-
-        <!-- Configuration -->
-        <div class="status-card config-card">
-            <h3>⚙️ Configuration</h3>
-            <div class="status-value">Development</div>
-            <div class="status-details">
-                <div>URL: ${middlewareUrl}</div>
-                <div>Port: ${status.port}</div>
-                <div>Environment: development</div>
-            </div>
-        </div>
-
-        <!-- API Health -->
-        <div class="status-card api-card">
-            <h3>🔌 API Health</h3>
-            <div class="status-value">${status.online ? 'Healthy' : 'Unhealthy'}</div>
-            <div class="status-details">
-                <div>HostBill API: ${hostbillConnected ? 'Connected' : 'Disconnected'}</div>
-                <div>Order Processing: ${status.online ? 'Available' : 'Unavailable'}</div>
-                <div>Product Sync: ${mapping.totalMappings > 0 ? 'Active' : 'Inactive'}</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Product Mapping Details -->
-    ${Object.keys(mapping.mappings || {}).length > 0 ? `
-    <div class="details-section">
-        <h3>🔗 Product Mapping Details</h3>
-
-        <div style="overflow-x: auto;">
-            <table class="mapping-table">
-                <thead>
-                    <tr>
-                        <th>Cloud VPS ID</th>
-                        <th>Cloud VPS Name</th>
-                        <th>HostBill ID</th>
-                        <th>HostBill Name</th>
-                        <th style="text-align: center;">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${Object.entries(mapping.mappings).map(([cloudVpsId, hostbillId]) => `
-                    <tr>
-                        <td class="cloud-id">${cloudVpsId}</td>
-                        <td>${getCloudVpsProductName(cloudVpsId)}</td>
-                        <td class="hostbill-id">${hostbillId}</td>
-                        <td>${getHostBillProductName(hostbillId)}</td>
-                        <td style="text-align: center;">
-                            <span class="status-badge">✅ Active</span>
-                        </td>
-                    </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    ` : ''}
-
-    <!-- Quick Actions -->
-    <div class="details-section">
-        <h3>⚡ Quick Actions</h3>
-
-        <div class="actions-grid">
-            <a href="http://localhost:3000/middleware-order-test" target="_blank" class="action-link action-order">
-                🛒 Test Order Processing
-            </a>
-
-            <a href="http://localhost:3000/product-mapping-test" target="_blank" class="action-link action-mapping">
-                🔗 Check Product Mapping
-            </a>
-
-            <a href="http://localhost:3000/middleware-affiliate-products" target="_blank" class="action-link action-affiliate">
-                👥 Affiliate Products
-            </a>
-
-            <a href="http://localhost:3000/advanced-order-test" target="_blank" class="action-link action-advanced">
-                🚀 Advanced Order Test
-            </a>
-
-            <a href="/tech-dashboard" target="_blank" class="action-link action-dashboard">
-                🎛️ Tech - Middleware Dashboard
-            </a>
-
-            <a href="/test-portal" target="_blank" class="action-link" style="background-color: #fff8e1; border: 2px solid #ff9800; color: #f57c00; font-weight: bold;">
-                🧪 Complete Test Portal
-            </a>
-
-            <a href="/tech-dashboard" target="_blank" class="action-link" style="background-color: #f3e5f5; border: 2px solid #9c27b0; color: #7b1fa2; font-weight: bold;">
-                🔧 Tech - Middleware Dashboard
-            </a>
-        </div>
-    </div>
-
-    <!-- Footer Info -->
-    <div class="footer-info">
-        <h4>ℹ️ System Information</h4>
-        <div class="footer-grid">
-            <div><strong>Middleware URL:</strong> ${middlewareUrl}</div>
-            <div><strong>Auto-refresh:</strong> Manual</div>
-            <div><strong>Dashboard Version:</strong> 2.0.0</div>
-            <div><strong>Last Check:</strong> ${lastUpdate.toLocaleString()}</div>
-            <div><strong>Total Requests:</strong> ${dashboardStats.requests}</div>
-            <div><strong>Total Errors:</strong> ${dashboardStats.errors}</div>
         </div>
     </div>
 
     <script>
-        // Add hover effects to action links
-        document.querySelectorAll('.action-link').forEach(link => {
-            link.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-2px)';
-                this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-            });
+        // Auto-refresh every 30 seconds
+        setTimeout(() => {
+            location.reload();
+        }, 30000);
 
-            link.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0)';
-                this.style.boxShadow = 'none';
-            });
-        });
-
-        // Add loading state to refresh button
-        document.querySelector('.refresh-btn').addEventListener('click', function() {
+        // Enhanced hover effects are handled by CSS
+        // Add loading animation to refresh button
+        document.querySelector('.btn-primary').addEventListener('click', function() {
             this.innerHTML = '⏳ Refreshing...';
             this.disabled = true;
+        });
+
+        // Show countdown timer for auto-refresh
+        let countdown = 30;
+        const countdownElement = document.createElement('div');
+        countdownElement.style.cssText = 'position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 4px; font-size: 12px; z-index: 1000;';
+        document.body.appendChild(countdownElement);
+
+        const updateCountdown = () => {
+            countdownElement.textContent = 'Auto-refresh in ' + countdown + 's';
+            countdown--;
+            if (countdown < 0) {
+                countdownElement.textContent = 'Refreshing...';
+            }
+        };
+
+        updateCountdown();
+        const countdownInterval = setInterval(updateCountdown, 1000);
+
+        // Clear interval when page is about to unload
+        window.addEventListener('beforeunload', () => {
+            clearInterval(countdownInterval);
         });
     </script>
 </body>
